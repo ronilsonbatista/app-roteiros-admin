@@ -57,7 +57,7 @@ export default function Header() {
         </h2>
         <div className="md:hidden flex items-center gap-2">
           <Image
-            src="/brand/logo-2go.jpeg"
+            src="/brand/logo-2go.png"
             alt="Logo 2GO Roteiros"
             width={80}
             height={24}

@@ -42,7 +42,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
         <div className="relative w-28 h-8 flex items-center justify-start bg-white/10 p-1.5 rounded-md">
           <Image
-            src="/brand/logo-2go.jpeg"
+            src="/brand/logo-2go.png"
             alt="Logo 2GO Roteiros"
             width={100}
             height={30}
