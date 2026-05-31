@@ -35,7 +35,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Usuários', href: '/users', icon: Users },
-    { name: 'Viagens', href: '/viagens', icon: Map, disabled: true },
+    { name: 'Viagens', href: '/trips', icon: Map },
     { name: 'Editor de Roteiros', href: '/editor-de-roteiros', icon: Edit3, disabled: true },
     { name: 'Roteiros Base', href: '/roteiros-base', icon: Compass, disabled: true },
     { name: 'Produtos', href: '/produtos', icon: Package, disabled: true },
