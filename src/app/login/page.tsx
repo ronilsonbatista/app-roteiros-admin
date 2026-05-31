@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Lock, Mail, Loader2, Compass } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Loader2 } from 'lucide-react';
 import api from '@/lib/axios';
 import { setCookie } from '@/lib/cookies';
 
@@ -50,7 +51,7 @@ export default function LoginPage() {
         const errMsg = err.response.data?.message || err.response.data?.error;
         setError(errMsg || 'Falha ao autenticar. Verifique suas credenciais.');
       } else {
-        setError('Não foi possível conectar ao servidor. O backend está rodando em http://localhost:3000?');
+        setError('Não foi possível conectar ao servidor. Verifique se o backend está ativo.');
       }
     } finally {
       setIsLoading(false);
@@ -58,56 +59,59 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-slate-950 font-sans select-none">
-      {/* Visual background decorations - premium gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/20 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-500/15 blur-[120px] pointer-events-none" />
-      <div className="absolute top-[40%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full bg-fuchsia-500/5 blur-[150px] pointer-events-none" />
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-slate-50 font-sans select-none">
+      {/* Light background geometric designs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-slate-100/60 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-slate-100/60 blur-[100px] pointer-events-none" />
 
-      {/* Main glassmorphism card container */}
+      {/* Main clean layout container */}
       <div className="w-full max-w-md relative z-10 animate-fade-in duration-700">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 text-white shadow-xl shadow-violet-500/20 mb-4 animate-bounce duration-[3s]">
-            <Compass className="w-7 h-7" />
+          <div className="relative w-48 h-16 mb-2 flex items-center justify-center">
+            <Image
+              src="/brand/logo-2go.jpeg"
+              alt="Logo 2GO Roteiros"
+              width={180}
+              height={60}
+              priority
+              className="h-auto w-auto object-contain max-h-14 rounded-lg shadow-sm border border-slate-100/50"
+            />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            Roteiros<span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">Admin</span>
-          </h1>
-          <p className="text-sm text-slate-400 mt-2">
-            Gestão inteligente de itinerários e experiências
+          <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase mt-1">
+            Painel Administrativo
           </p>
         </div>
 
-        <Card className="border-slate-800/80 bg-slate-900/60 backdrop-blur-xl shadow-2xl text-slate-200">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold text-white text-center">Fazer Login</CardTitle>
-            <CardDescription className="text-center text-slate-400">
-              Entre com suas credenciais administrativas
+        <Card className="border-slate-200/80 bg-white/90 shadow-xl backdrop-blur-sm text-slate-800">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl font-bold text-slate-900 text-center">Login</CardTitle>
+            <CardDescription className="text-center text-slate-500 text-xs">
+              Gestão inteligente de roteiros personalizados
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               {error && (
-                <div className="p-3 text-xs font-semibold rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 animate-shake">
+                <div className="p-3 text-xs font-semibold rounded-lg bg-red-50 border border-red-100 text-red-600 animate-shake">
                   {error}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300 font-medium text-xs">
+                <Label htmlFor="email" className="text-slate-700 font-semibold text-xs">
                   E-mail
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="exemplo@roteiros.com"
+                    placeholder="admin@roteiros.com"
                     autoComplete="username"
                     required
                     disabled={isLoading}
-                    className="pl-10 bg-slate-950/80 border-slate-800 focus:border-violet-500 focus:ring-violet-500 text-slate-100 placeholder-slate-500 transition-all duration-200"
+                    className="pl-10 bg-slate-50 border-slate-200 text-slate-950 placeholder-slate-400 focus:bg-white focus:border-[#001F5B] focus:ring-1 focus:ring-[#001F5B] transition-all duration-200"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -116,15 +120,15 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="current-password" className="text-slate-300 font-medium text-xs">
+                  <Label htmlFor="current-password" className="text-slate-700 font-semibold text-xs">
                     Senha
                   </Label>
-                  <a href="#" className="text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors">
+                  <a href="#" className="text-xs font-semibold text-[#001F5B] hover:text-[#FF6A00] transition-colors">
                     Esqueceu a senha?
                   </a>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="current-password"
                     name="password"
@@ -133,14 +137,14 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     required
                     disabled={isLoading}
-                    className="pl-10 pr-10 bg-slate-950/80 border-slate-800 focus:border-violet-500 focus:ring-violet-500 text-slate-100 placeholder-slate-500 transition-all duration-200"
+                    className="pl-10 pr-10 bg-slate-50 border-slate-200 text-slate-950 placeholder-slate-400 focus:bg-white focus:border-[#001F5B] focus:ring-1 focus:ring-[#001F5B] transition-all duration-200"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -148,11 +152,11 @@ export default function LoginPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
+            <CardFooter className="pt-2">
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white font-semibold shadow-lg shadow-violet-600/20 active:scale-[0.98] transition-all duration-150 py-5 rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-[#001F5B] hover:bg-[#FF6A00] text-white font-bold shadow-md shadow-[#001F5B]/10 active:scale-[0.98] focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 transition-all duration-200 py-5 rounded-lg flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isLoading ? (
                   <>

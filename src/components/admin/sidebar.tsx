@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Compass, LayoutDashboard, Map, Users, Settings, LogOut, FileText } from 'lucide-react';
+import { LayoutDashboard, Map, Users, Settings, LogOut, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { deleteCookie } from '@/lib/cookies';
@@ -36,15 +37,21 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
   };
 
   return (
-    <div className={cn("flex flex-col h-full bg-slate-900 border-r border-slate-800 text-slate-200 w-64", className)}>
+    <div className={cn("flex flex-col h-full bg-[#001F5B] border-r border-[#001F5B]/10 text-slate-100 w-64", className)}>
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-800">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-tr from-violet-600 to-cyan-500 text-white shadow-md shadow-violet-500/10">
-          <Compass className="w-5 h-5" />
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+        <div className="relative w-28 h-8 flex items-center justify-start bg-white/10 p-1.5 rounded-md">
+          <Image
+            src="/brand/logo-2go.jpeg"
+            alt="Logo 2GO Roteiros"
+            width={100}
+            height={30}
+            priority
+            className="h-auto w-auto object-contain max-h-6 rounded"
+          />
         </div>
-        <div>
-          <span className="font-bold text-white tracking-wide text-sm block">RoteirosAdmin</span>
-          <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider block">Painel de Controle</span>
+        <div className="flex flex-col">
+          <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest block">Admin</span>
         </div>
       </div>
 
@@ -58,12 +65,12 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
             <div key={item.name}>
               {item.disabled ? (
                 <div
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 cursor-not-allowed select-none"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/30 cursor-not-allowed select-none"
                   title="Funcionalidade indisponível (Apenas login implementado)"
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <Icon className="w-4 h-4 shrink-0 text-white/30" />
                   <span>{item.name}</span>
-                  <span className="ml-auto text-[9px] bg-slate-800/40 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">Breve</span>
+                  <span className="ml-auto text-[9px] bg-white/5 text-white/40 px-1.5 py-0.5 rounded uppercase tracking-wider">Breve</span>
                 </div>
               ) : (
                 <Link
@@ -72,11 +79,11 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-violet-600/10 text-violet-400 font-semibold border-l-2 border-violet-500 pl-2.5"
-                      : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                      ? "bg-[#FF6A00] text-white font-semibold shadow-md shadow-[#FF6A00]/20 pl-3.5"
+                      : "text-slate-300 hover:bg-white/8 hover:text-white"
                   )}
                 >
-                  <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-violet-400" : "text-slate-400")} />
+                  <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-white" : "text-slate-300")} />
                   <span>{item.name}</span>
                 </Link>
               )}
@@ -86,11 +93,11 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       </nav>
 
       {/* Logout Footer Section */}
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-white/10">
         <Button
           variant="ghost"
           onClick={handleLogout}
-          className="w-full justify-start gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+          className="w-full justify-start gap-3 text-slate-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all duration-200 cursor-pointer"
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <span>Sair da Conta</span>

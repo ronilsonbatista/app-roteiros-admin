@@ -64,23 +64,23 @@ export default function AdminLayout({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-200">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-500 mb-2" />
-        <p className="text-sm font-medium text-slate-400">Carregando dados da sessão...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800">
+        <Loader2 className="w-8 h-8 animate-spin text-[#001F5B] mb-2" />
+        <p className="text-sm font-semibold text-slate-500">Carregando dados da sessão...</p>
       </div>
     );
   }
 
   return (
     <UserContext.Provider value={{ user, loading }}>
-      <div className="flex min-h-screen bg-slate-950 font-sans">
+      <div className="flex min-h-screen bg-slate-50 font-sans">
         {/* Sidebar on desktop */}
-        <Sidebar className="hidden md:flex shrink-0 sticky top-0 h-screen" />
+        <Sidebar className="hidden md:flex shrink-0 sticky top-0 h-screen shadow-md" />
 
         {/* Main content wrapper */}
         <div className="flex flex-col flex-1 min-w-0">
           <Header />
-          <main className="flex-1 p-6 md:p-8 overflow-y-auto text-slate-100">
+          <main className="flex-1 p-6 md:p-8 overflow-y-auto text-slate-800">
             <div className="max-w-7xl mx-auto animate-fade-in">
               {children}
             </div>
