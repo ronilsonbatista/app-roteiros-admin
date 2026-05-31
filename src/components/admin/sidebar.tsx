@@ -37,7 +37,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     { name: 'Usuários', href: '/users', icon: Users },
     { name: 'Viagens', href: '/trips', icon: Map },
     { name: 'Editor de Roteiros', href: '/editor-de-roteiros', icon: Edit3, disabled: true },
-    { name: 'Roteiros Base', href: '/roteiros-base', icon: Compass, disabled: true },
+    { name: 'Roteiros Base', href: '/base-trips', icon: Compass },
     { name: 'Produtos', href: '/produtos', icon: Package, disabled: true },
     { name: 'Compras', href: '/compras', icon: CreditCard, disabled: true },
     { name: 'IA Logs', href: '/ia-logs', icon: Sparkles, disabled: true },
