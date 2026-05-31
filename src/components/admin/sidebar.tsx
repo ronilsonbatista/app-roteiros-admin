@@ -4,7 +4,20 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Map, Users, Settings, LogOut, FileText } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Map, 
+  Edit3, 
+  Compass, 
+  Package, 
+  CreditCard, 
+  Sparkles, 
+  BarChart3, 
+  Image as ImageIcon, 
+  Settings, 
+  LogOut 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { deleteCookie } from '@/lib/cookies';
@@ -18,11 +31,18 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Navigation Menu: only Dashboard and Usuários are enabled/functional
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Roteiros', href: '/roteiros', icon: Map, disabled: true },
-    { name: 'Clientes', href: '/clientes', icon: Users, disabled: true },
-    { name: 'Relatórios', href: '/relatorios', icon: FileText, disabled: true },
+    { name: 'Usuários', href: '/users', icon: Users },
+    { name: 'Viagens', href: '/viagens', icon: Map, disabled: true },
+    { name: 'Editor de Roteiros', href: '/editor-de-roteiros', icon: Edit3, disabled: true },
+    { name: 'Roteiros Base', href: '/roteiros-base', icon: Compass, disabled: true },
+    { name: 'Produtos', href: '/produtos', icon: Package, disabled: true },
+    { name: 'Compras', href: '/compras', icon: CreditCard, disabled: true },
+    { name: 'IA Logs', href: '/ia-logs', icon: Sparkles, disabled: true },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3, disabled: true },
+    { name: 'Mídias', href: '/midias', icon: ImageIcon, disabled: true },
     { name: 'Configurações', href: '/configuracoes', icon: Settings, disabled: true },
   ];
 
@@ -59,14 +79,14 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname.startsWith(item.href);
           
           return (
             <div key={item.name}>
               {item.disabled ? (
                 <div
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/30 cursor-not-allowed select-none"
-                  title="Funcionalidade indisponível (Apenas login implementado)"
+                  title="Funcionalidade indisponível nesta fase"
                 >
                   <Icon className="w-4 h-4 shrink-0 text-white/30" />
                   <span>{item.name}</span>
