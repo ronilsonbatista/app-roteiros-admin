@@ -83,7 +83,7 @@ export default function DashboardPage() {
     if (typeof val === 'boolean') return val;
     if (typeof val === 'string') {
       const lower = val.toLowerCase().trim();
-      return ['up', 'online', 'healthy', 'ok', 'true', 'funcionando', 'ativo'].includes(lower);
+      return ['up', 'healthy', 'ok', 'true'].includes(lower);
     }
     return false;
   };
@@ -113,12 +113,12 @@ export default function DashboardPage() {
                           overview?.ai_failed_requests_count ?? 
                           overview?.ai_failed_requests ?? 0;
 
-  // Extract health states
-  const apiStatus = health?.api;
-  const dbStatus = health?.database;
-  const uploadStatus = health?.uploadFolder ?? health?.upload_folder;
-  const openaiStatus = health?.openai ?? health?.openAi ?? health?.open_ai;
-  const mapsStatus = health?.googleMaps ?? health?.google_maps;
+  // Extract health states supporting both /health and /admin/dashboard/system-health schemas
+  const apiStatus = health?.api ?? (health ? 'OK' : undefined);
+  const dbStatus = health?.database ?? (health as any)?.databaseStatus;
+  const uploadStatus = health?.uploadFolder ?? health?.upload_folder ?? (health as any)?.uploadFolderStatus ?? (health as any)?.uploadsFolderExists;
+  const openaiStatus = health?.openai ?? health?.openAi ?? health?.open_ai ?? (health as any)?.openaiConfigured;
+  const mapsStatus = health?.googleMaps ?? health?.google_maps ?? (health as any)?.googleMapsConfigured ?? (health as any)?.googlePlacesConfigured;
 
   // Health widget UI configurations
   const healthChecks = [
