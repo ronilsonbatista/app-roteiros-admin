@@ -148,6 +148,8 @@ export interface CreateBaseTripDayDto {
   estimatedCost?: number;
 }
 
+export type UpdateBaseTripDayDto = Partial<CreateBaseTripDayDto>;
+
 export interface CreateBaseAttractionDto {
   name: string;
   category: ItineraryCategory;
@@ -242,6 +244,22 @@ export async function deleteBaseTrip(id: string): Promise<BaseTrip> {
  */
 export async function createBaseTripDay(baseTripId: string, dto: CreateBaseTripDayDto): Promise<BaseTripDay> {
   const response = await api.post(`/admin/base-trips/${baseTripId}/days`, dto);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Update a Base Trip Day
+ */
+export async function updateBaseTripDay(id: string, dto: UpdateBaseTripDayDto): Promise<BaseTripDay> {
+  const response = await api.patch(`/admin/base-trip-days/${id}`, dto);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Delete a Base Trip Day
+ */
+export async function deleteBaseTripDay(id: string): Promise<BaseTripDay> {
+  const response = await api.delete(`/admin/base-trip-days/${id}`);
   return response.data?.data || response.data;
 }
 

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import {
   getBaseTripDetails,
   createBaseTripDay,
+  updateBaseTripDay,
+  deleteBaseTripDay,
   createBaseAttraction,
   updateBaseAttraction,
   deleteBaseAttraction,
@@ -82,6 +84,7 @@ export default function BaseTripDetailPage() {
 
   // Target IDs for nested creations
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  const [editingDay, setEditingDay] = useState<BaseTripDay | null>(null);
   const [editingAttraction, setEditingAttraction] = useState<BaseAttraction | null>(null);
   const [editingRestaurant, setEditingRestaurant] = useState<BaseRestaurant | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -155,35 +158,70 @@ export default function BaseTripDetailPage() {
     fetchTripDetails();
   }, [fetchTripDetails]);
 
-  // Handle Day Creation
-  const handleCreateDay = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-      await createBaseTripDay(tripId, {
-        dayNumber: Number(dayNumber),
-        title: dayTitle.trim() || undefined,
-        description: dayDescription.trim() || undefined,
-        region: dayRegion.trim() || undefined,
-        suggestedTransport: dayTransport.trim() || undefined,
-        estimatedCost: dayEstimatedCost.trim() ? Number(dayEstimatedCost) : undefined
-      });
-      alert('Dia criado com sucesso.');
-      setDayDrawerOpen(false);
-      
-      // Reset day fields
+  // Open Day Form
+  const handleOpenDay = (item: BaseTripDay | null = null) => {
+    setEditingDay(item);
+    if (item) {
+      setDayNumber(item.dayNumber);
+      setDayTitle(item.title || '');
+      setDayDescription(item.description || '');
+      setDayRegion(item.region || '');
+      setDayTransport(item.suggestedTransport || '');
+      setDayEstimatedCost(item.estimatedCost ? item.estimatedCost.toString() : '');
+    } else {
+      const nextDay = trip?.days && trip.days.length > 0 
+        ? Math.max(...trip.days.map(d => d.dayNumber)) + 1 
+        : 1;
+      setDayNumber(nextDay);
       setDayTitle('');
       setDayDescription('');
       setDayRegion('');
       setDayTransport('');
       setDayEstimatedCost('');
-      
+    }
+    setDayDrawerOpen(true);
+  };
+
+  // Handle Day Creation or Update
+  const handleSaveDay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const payload = {
+      dayNumber: Number(dayNumber),
+      title: dayTitle.trim() || undefined,
+      description: dayDescription.trim() || undefined,
+      region: dayRegion.trim() || undefined,
+      suggestedTransport: dayTransport.trim() || undefined,
+      estimatedCost: dayEstimatedCost.trim() ? Number(dayEstimatedCost) : undefined
+    };
+    try {
+      if (editingDay) {
+        await updateBaseTripDay(editingDay.id, payload);
+        alert('Dia atualizado com sucesso.');
+      } else {
+        await createBaseTripDay(tripId, payload);
+        alert('Dia criado com sucesso.');
+      }
+      setDayDrawerOpen(false);
       fetchTripDetails();
     } catch (err) {
-      console.error('Error creating day:', err);
-      alert('Erro ao criar o dia.');
+      console.error('Error saving day:', err);
+      alert('Erro ao salvar o dia.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle Day Deletion
+  const handleDeleteDay = async (id: string, number: number) => {
+    if (!window.confirm(`Deseja realmente excluir o Dia ${number}? Todas as atrações e restaurantes deste dia serão removidos.`)) return;
+    try {
+      await deleteBaseTripDay(id);
+      alert('Dia excluído com sucesso.');
+      fetchTripDetails();
+    } catch (err) {
+      console.error('Error deleting day:', err);
+      alert('Erro ao excluir o dia.');
     }
   };
 
@@ -443,7 +481,7 @@ export default function BaseTripDetailPage() {
           </Button>
 
           <Button
-            onClick={() => setDayDrawerOpen(true)}
+            onClick={() => handleOpenDay()}
             className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-xl h-11 px-5 shadow-md flex items-center gap-2 cursor-pointer transition-colors duration-200"
           >
             <Plus className="w-4 h-4" />
@@ -603,7 +641,7 @@ export default function BaseTripDetailPage() {
                   Este roteiro base ainda não possui nenhum dia de cronograma configurado. Adicione o primeiro dia para começar a inserir atrações.
                 </p>
                 <Button
-                  onClick={() => setDayDrawerOpen(true)}
+                  onClick={() => handleOpenDay()}
                   className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -633,19 +671,42 @@ export default function BaseTripDetailPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {day.suggestedTransport && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200/50">
-                            <Car className="w-3.5 h-3.5 text-slate-500" />
-                            {day.suggestedTransport}
-                          </span>
-                        )}
-                        {day.estimatedCost !== undefined && day.estimatedCost !== null && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100">
-                            <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                            {formatCurrency(day.estimatedCost, trip.currency || 'BRL')}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end w-full sm:w-auto">
+                        <div className="flex items-center gap-2">
+                          {day.suggestedTransport && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200/50">
+                              <Car className="w-3.5 h-3.5 text-slate-500" />
+                              {day.suggestedTransport}
+                            </span>
+                          )}
+                          {day.estimatedCost !== undefined && day.estimatedCost !== null && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100">
+                              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                              {formatCurrency(day.estimatedCost, trip.currency || 'BRL')}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-1 border-l border-slate-250 pl-3">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenDay(day)}
+                            className="text-slate-400 hover:text-[#001F5B] cursor-pointer h-7 w-7 rounded-md"
+                            title="Editar Dia"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteDay(day.id, day.dayNumber)}
+                            className="text-slate-400 hover:text-red-600 cursor-pointer h-7 w-7 rounded-md"
+                            title="Excluir Dia"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -889,13 +950,17 @@ export default function BaseTripDetailPage() {
         </div>
       )}
 
-      {/* Drawer: Add Base Trip Day */}
+      {/* Drawer: Create / Edit Base Trip Day */}
       <Sheet open={dayDrawerOpen} onOpenChange={setDayDrawerOpen}>
         <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-md p-0 flex flex-col h-full shadow-2xl z-50">
-          <form onSubmit={handleCreateDay} className="flex flex-col h-full">
+          <form onSubmit={handleSaveDay} className="flex flex-col h-full">
             <div className="p-6 border-b border-slate-100 bg-[#001F5B] text-white shrink-0">
-              <h2 className="font-extrabold text-base text-white">Adicionar Dia de Roteiro</h2>
-              <p className="text-white/70 text-xs mt-1">Insira as configurações deste dia. Você poderá adicionar atrações a ele em seguida.</p>
+              <h2 className="font-extrabold text-base text-white">
+                {editingDay ? 'Editar Dia de Roteiro' : 'Adicionar Dia de Roteiro'}
+              </h2>
+              <p className="text-white/70 text-xs mt-1">
+                {editingDay ? 'Atualize as configurações e informações deste dia do cronograma.' : 'Insira as configurações deste dia. Você poderá adicionar atrações a ele em seguida.'}
+              </p>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -981,7 +1046,7 @@ export default function BaseTripDetailPage() {
                 disabled={isSaving}
                 className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-5 h-10 text-xs cursor-pointer"
               >
-                {isSaving ? 'Salvando...' : 'Adicionar Dia'}
+                {isSaving ? 'Salvando...' : editingDay ? 'Salvar Alterações' : 'Adicionar Dia'}
               </Button>
             </div>
           </form>
