@@ -41,8 +41,8 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     { name: 'Produtos', href: '/produtos', icon: Package, disabled: true },
     { name: 'Compras', href: '/billing', icon: CreditCard },
     { name: 'IA', href: '/ai', icon: Sparkles },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3, disabled: true },
-    { name: 'Mídias', href: '/midias', icon: ImageIcon, disabled: true },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Mídias', href: '/media', icon: ImageIcon },
     { name: 'Configurações', href: '/configuracoes', icon: Settings, disabled: true },
   ];
 
