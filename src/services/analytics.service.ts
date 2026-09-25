@@ -124,3 +124,29 @@ export async function getSystemHealth(): Promise<SystemHealth> {
   const response = await api.get('/admin/dashboard/system-health');
   return response.data?.data || response.data;
 }
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+  conversionFromPrevious: number;
+  conversionFromFirst: number;
+}
+
+export interface FunnelStats {
+  period: { startDate?: string; endDate?: string };
+  funnel: FunnelStage[];
+  summary: {
+    totalVisitors: number;
+    totalPaidCustomers: number;
+    overallConversionRate: number;
+  };
+}
+
+export async function getFunnel(startDate?: string, endDate?: string): Promise<FunnelStats> {
+  const params: Record<string, any> = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  const response = await api.get('/admin/analytics/funnel', { params });
+  return response.data?.data || response.data;
+}
+
