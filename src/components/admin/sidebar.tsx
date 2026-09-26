@@ -7,7 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Users, 
-  UserCheck,
   Funnel,
   Map, 
   Compass, 
@@ -21,7 +20,9 @@ import {
   BarChart3, 
   Image as ImageIcon, 
   ServerCog,
-  LogOut 
+  UserCheck,
+  LogOut,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -49,33 +50,33 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
 
   const navGroups: NavGroup[] = [
     {
-      title: 'Visão Geral',
+      title: 'VISÃO GERAL',
       items: [
-        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
+        { name: 'Dashboard Executivo', href: '/dashboard', icon: LayoutDashboard, exact: true },
       ],
     },
     {
-      title: 'Clientes & CRM',
+      title: 'CLIENTES & CRM',
       items: [
-        { name: 'Todos os Clientes', href: '/customers', icon: Users },
+        { name: 'Clientes', href: '/customers', icon: Users },
         { name: 'Leads & Funil', href: '/leads', icon: Funnel },
       ],
     },
     {
-      title: 'Viagens',
+      title: 'VIAGENS',
       items: [
-        { name: 'Viagens', href: '/trips', icon: Map },
+        { name: 'Viagens no App', href: '/trips', icon: Map },
         { name: 'Roteiros Base', href: '/base-trips', icon: Compass },
       ],
     },
     {
-      title: 'Comercial',
+      title: 'COMERCIAL',
       items: [
         { name: 'Compras & Cupons', href: '/billing', icon: CreditCard },
       ],
     },
     {
-      title: 'Marketing & Remarketing',
+      title: 'MARKETING',
       items: [
         { name: 'Campanhas', href: '/marketing', icon: Megaphone, exact: true },
         { name: 'Templates', href: '/marketing/templates', icon: MailCheck },
@@ -83,29 +84,29 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       ],
     },
     {
-      title: 'Conteúdo & CMS',
+      title: 'CONTEÚDO',
       items: [
-        { name: 'Blog & Artigos', href: '/blog', icon: FileText },
+        { name: 'Blog & CMS', href: '/blog', icon: FileText },
       ],
     },
     {
-      title: 'Inteligência Artificial',
+      title: 'INTELIGÊNCIA',
       items: [
-        { name: 'Central de IA & Diretrizes', href: '/intelligence', icon: Sparkles, exact: true },
-        { name: 'Playground & Simulação', href: '/intelligence/playground', icon: FlaskConical },
+        { name: 'IA & Diretrizes', href: '/intelligence', icon: Sparkles, exact: true },
+        { name: 'Playground IA', href: '/intelligence/playground', icon: FlaskConical },
       ],
     },
     {
-      title: 'Analytics',
+      title: 'ANALYTICS',
       items: [
-        { name: 'Métricas & Funil', href: '/analytics', icon: BarChart3 },
+        { name: 'Métricas da Plataforma', href: '/analytics', icon: BarChart3 },
       ],
     },
     {
-      title: 'Sistema',
+      title: 'SISTEMA',
       items: [
+        { name: 'Provider Health & Logs', href: '/system', icon: ServerCog },
         { name: 'Usuários Admin', href: '/users', icon: UserCheck },
-        { name: 'Status & Auditoria', href: '/system', icon: ServerCog },
         { name: 'Mídias', href: '/media', icon: ImageIcon },
       ],
     },
@@ -122,30 +123,32 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
   };
 
   return (
-    <div className={cn("flex flex-col h-full bg-[#001F5B] border-r border-[#001F5B]/10 text-slate-100 w-64 select-none", className)}>
+    <aside className={cn("flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-700 w-64 select-none shrink-0", className)}>
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 shrink-0">
-        <div className="relative w-28 h-8 flex items-center justify-start bg-white/10 p-1.5 rounded-md">
-          <Image
-            src="/brand/logo-2go.png"
-            alt="Logo 2GO Roteiros"
-            width={100}
-            height={30}
-            priority
-            className="h-auto w-auto object-contain max-h-6 rounded"
-          />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-[#FF6A00] font-black uppercase tracking-widest block">Control Center</span>
-          <span className="text-[9px] text-white/50 block font-medium">Ecossistema 2GO</span>
-        </div>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 bg-slate-50/40">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="relative w-24 h-7 flex items-center justify-start">
+            <Image
+              src="/brand/logo-2go.png"
+              alt="Logo 2GO Roteiros"
+              width={96}
+              height={28}
+              priority
+              className="h-auto w-auto object-contain max-h-7"
+            />
+          </div>
+          <div className="flex flex-col border-l border-slate-200 pl-2.5">
+            <span className="text-[10px] text-[#001F5B] font-bold tracking-tight leading-none uppercase">Painel de Gestão</span>
+            <span className="text-[9px] text-[#FF6A00] font-mono leading-none mt-0.5">Control Center</span>
+          </div>
+        </Link>
       </div>
 
       {/* Navigation Groups */}
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
-            <h3 className="px-3 text-[10px] font-bold uppercase tracking-wider text-white/40">
+            <h3 className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
               {group.title}
             </h3>
             <div className="space-y-0.5">
@@ -161,16 +164,24 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
                     href={item.href}
                     onClick={onItemClick}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150",
+                      "group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150",
                       isActive
-                        ? "bg-[#FF6A00] text-white font-semibold shadow-md shadow-[#FF6A00]/25 pl-3.5"
-                        : "text-slate-300 hover:bg-white/8 hover:text-white"
+                        ? "bg-[#001F5B]/8 text-[#001F5B] font-semibold border-l-2 border-[#FF6A00] pl-2.5"
+                        : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
                     )}
                   >
-                    <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-white" : "text-slate-300")} />
-                    <span className="truncate">{item.name}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon 
+                        className={cn(
+                          "w-4 h-4 shrink-0 transition-colors", 
+                          isActive ? "text-[#001F5B]" : "text-slate-400 group-hover:text-slate-700"
+                        )} 
+                      />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+
                     {item.badge && (
-                      <span className="ml-auto text-[9px] bg-white/20 text-white px-1.5 py-0.5 rounded font-mono">
+                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono border border-slate-200">
                         {item.badge}
                       </span>
                     )}
@@ -182,17 +193,17 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Logout Footer Section */}
-      <div className="p-3 border-t border-white/10 shrink-0">
+      {/* Footer Section */}
+      <div className="p-3 border-t border-slate-100 bg-slate-50/40 shrink-0 space-y-2">
         <Button
           variant="ghost"
           onClick={handleLogout}
-          className="w-full justify-start gap-3 text-slate-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all duration-200 cursor-pointer text-xs h-9"
+          className="w-full justify-start gap-2.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50/80 transition-all duration-150 cursor-pointer text-xs h-9"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <LogOut className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-rose-500" />
           <span>Sair da Conta</span>
         </Button>
       </div>
-    </div>
+    </aside>
   );
 }
