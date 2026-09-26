@@ -18,12 +18,16 @@ import {
   XCircle, 
   ShieldCheck, 
   RefreshCw,
-  ExternalLink,
-  DollarSign
+  Coins,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/admin/page-header';
+import { MetricCard } from '@/components/admin/metric-card';
+import { StatusBadge } from '@/components/admin/status-badge';
+import { EmptyState } from '@/components/admin/empty-state';
 import { getCustomer360, updateCustomerConsent, Customer360Data } from '@/services/customers.service';
 
 export default function Customer360Page() {
@@ -83,10 +87,10 @@ export default function Customer360Page() {
 
   if (error || !data) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
-        <p className="text-xs text-red-700 font-semibold">{error || 'Cliente não encontrado.'}</p>
+      <div className="p-8 bg-white border border-rose-200 rounded-xl text-center space-y-3">
+        <p className="text-sm text-rose-700 font-semibold">{error || 'Cliente não encontrado.'}</p>
         <Link href="/customers">
-          <Button variant="outline" size="sm" className="text-xs">
+          <Button variant="outline" size="sm" className="text-xs h-8">
             Voltar para Clientes
           </Button>
         </Link>
@@ -96,57 +100,51 @@ export default function Customer360Page() {
 
   const { customer, metrics, timeline, trips, purchases, guestJourneys, campaignsReceived } = data;
 
-  const getStageBadge = (st: string) => {
-    switch (st) {
-      case 'CUSTOMER_PAID':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Cliente Pago</span>;
-      case 'PROSPECT':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">Prospect (Preview)</span>;
-      case 'CUSTOMER_UNPAID':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">Cadastrado Sem Compra</span>;
-      case 'LEAD':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Lead</span>;
-      case 'INACTIVE':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Inativo</span>;
-      default:
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">{st}</span>;
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Back button & Action bar */}
-      <div className="flex items-center justify-between">
-        <Link href="/customers" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Voltar para lista de clientes
-        </Link>
+      {/* Header */}
+      <PageHeader
+        category="CUSTOMER 360°"
+        title={customer.fullName || 'Cliente sem nome'}
+        subtitle={`Visão unificada de engajamento, histórico financeiro e comunicações • ID: ${customer.id.substring(0, 8)}...`}
+        breadcrumbs={[
+          { label: 'Clientes & CRM', href: '/customers' },
+          { label: customer.fullName || 'Cliente 360' }
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/customers">
+              <Button variant="outline" size="sm" className="text-xs h-9 bg-white border-slate-200 text-slate-700">
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                Voltar
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchCustomerData}
+              disabled={isLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+            </Button>
+          </div>
+        }
+      />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchCustomerData}
-          disabled={isLoading}
-          className="text-xs h-8 flex items-center gap-1.5"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Recarregar Dados
-        </Button>
-      </div>
-
-      {/* Customer 360 Header Card */}
-      <Card className="p-6 bg-white border-slate-200 shadow-xs">
+      {/* Profile Overview Banner */}
+      <Card className="p-6 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#001F5B]/10 flex items-center justify-center text-[#001F5B] shrink-0 font-black text-lg">
+            <div className="w-14 h-14 rounded-xl bg-[#001F5B] text-white flex items-center justify-center shrink-0 font-bold text-xl shadow-2xs">
               {customer.fullName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <div>
+            <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-slate-900">{customer.fullName || 'Sem Nome'}</h1>
-                {getStageBadge(metrics.stage)}
+                <h2 className="text-xl font-bold text-slate-900">{customer.fullName || 'Sem Nome'}</h2>
+                <StatusBadge status={metrics.stage} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                 <span className="flex items-center gap-1">
                   <Mail className="w-3.5 h-3.5 text-slate-400" />
                   {customer.email}
@@ -157,144 +155,100 @@ export default function Customer360Page() {
                     {customer.phone}
                   </span>
                 )}
-                <span className="flex items-center gap-1 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-600">
-                  Origem: {customer.origin || 'ORGANIC'}
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  Cadastrado em {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Consent and Security Card */}
-          <div className="flex flex-col items-start md:items-end gap-2 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#001F5B]" />
-              <span className="text-xs font-semibold text-slate-700">Consentimento LGPD</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {customer.marketingConsent ? (
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Marketing Autorizado
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs text-slate-600 font-semibold bg-slate-200/70 px-2.5 py-0.5 rounded-full">
-                  <XCircle className="w-3.5 h-3.5 text-slate-500" />
-                  Não Autorizado / Opt-out
-                </span>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToggleConsent}
-                disabled={isUpdatingConsent}
-                className="text-[11px] h-7 px-2"
-              >
-                {customer.marketingConsent ? 'Revogar Consentimento' : 'Registrar Opt-in'}
-              </Button>
-            </div>
-            {customer.marketingConsentAt && (
-              <span className="text-[10px] text-slate-400">
-                Registrado em: {new Date(customer.marketingConsentAt).toLocaleString('pt-BR')}
+          {/* LGPD Consent Toggle Action */}
+          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 shrink-0 space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#001F5B]" />
+                Consentimento LGPD Marketing:
               </span>
-            )}
+              <StatusBadge 
+                status={customer.marketingConsent ? 'ACTIVE' : 'INACTIVE'} 
+                label={customer.marketingConsent ? 'Opt-in' : 'Opt-out'} 
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUpdatingConsent}
+              onClick={handleToggleConsent}
+              className="w-full text-[11px] h-7 bg-white text-slate-700 hover:bg-slate-100"
+            >
+              {isUpdatingConsent ? 'Atualizando...' : customer.marketingConsent ? 'Revogar Opt-in' : 'Conceder Opt-in'}
+            </Button>
           </div>
         </div>
 
-        {/* 4 Core Summary KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Gasto</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
-              R$ {(metrics.totalSpent / 100).toFixed(2)}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">{metrics.purchasesCount} compra(s) realizada(s)</div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Viagens Criadas</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
-              {metrics.tripsCount}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Roteiros na conta</div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Jornadas Guest</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
-              {metrics.guestJourneysCount}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Planejamentos anônimos reivindicados</div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Comunicações</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
-              {metrics.campaignsReceivedCount}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Campanhas de marketing enviadas</div>
-          </div>
+        {/* 4 Summary Metric Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            title="LIFETIME VALUE (LTV)"
+            value={`R$ ${(metrics.totalSpent / 100).toFixed(2)}`}
+            subtitle="Total acumulado pago"
+            icon={Coins}
+          />
+          <MetricCard
+            title="VIAGENS NO APP"
+            value={metrics.tripsCount}
+            subtitle="Roteiros gerados"
+            icon={MapPin}
+          />
+          <MetricCard
+            title="TRANSAÇÕES DE COMPRA"
+            value={metrics.purchasesCount}
+            subtitle="Checkout processado"
+            icon={ShoppingBag}
+          />
+          <MetricCard
+            title="JORNADAS DE NAVEGAÇÃO"
+            value={metrics.guestJourneysCount}
+            subtitle="Previews & Questionários"
+            icon={Layers}
+          />
         </div>
       </Card>
 
-      {/* Tabs Section: Timeline vs Trips vs Purchases vs Journeys vs Campaigns */}
-      <Tabs defaultValue="timeline" className="space-y-4">
-        <TabsList className="bg-slate-100 p-1 border border-slate-200">
-          <TabsTrigger value="timeline" className="text-xs">
-            <Clock className="w-3.5 h-3.5 mr-1.5" />
-            Timeline Cronológica ({timeline.length})
-          </TabsTrigger>
-          <TabsTrigger value="trips" className="text-xs">
-            <MapPin className="w-3.5 h-3.5 mr-1.5" />
-            Viagens ({trips.length})
-          </TabsTrigger>
-          <TabsTrigger value="purchases" className="text-xs">
-            <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-            Compras ({purchases.length})
-          </TabsTrigger>
-          <TabsTrigger value="journeys" className="text-xs">
-            <Layers className="w-3.5 h-3.5 mr-1.5" />
-            Jornadas Anônimas ({guestJourneys.length})
-          </TabsTrigger>
-          <TabsTrigger value="campaigns" className="text-xs">
-            <Megaphone className="w-3.5 h-3.5 mr-1.5" />
-            E-mails Recebidos ({campaignsReceived.length})
-          </TabsTrigger>
+      {/* Tabs Layout */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="bg-white p-1 border border-slate-200/90 rounded-xl shadow-2xs">
+          <TabsTrigger value="overview" className="text-xs font-semibold px-4 py-1.5">Visão Geral & Timeline</TabsTrigger>
+          <TabsTrigger value="trips" className="text-xs font-semibold px-4 py-1.5">Viagens ({trips.length})</TabsTrigger>
+          <TabsTrigger value="purchases" className="text-xs font-semibold px-4 py-1.5">Compras ({purchases.length})</TabsTrigger>
+          <TabsTrigger value="journeys" className="text-xs font-semibold px-4 py-1.5">Jornadas ({guestJourneys.length})</TabsTrigger>
+          <TabsTrigger value="comms" className="text-xs font-semibold px-4 py-1.5">Comunicações ({campaignsReceived.length})</TabsTrigger>
         </TabsList>
 
-        {/* 1. CHRONOLOGICAL TIMELINE */}
-        <TabsContent value="timeline">
-          <Card className="p-6 bg-white border-slate-200 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#001F5B]" />
-              Histórico Cronológico Unificado da Jornada
+        {/* Tab: Overview & Timeline */}
+        <TabsContent value="overview" className="space-y-6">
+          <Card className="p-5 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-mono flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#FF6A00]" />
+              Linha do Tempo de Atividades
             </h3>
 
             {timeline.length === 0 ? (
-              <div className="text-xs text-slate-400 py-8 text-center">
-                Nenhum evento registrado ainda para este cliente.
-              </div>
+              <EmptyState title="Nenhuma atividade registrada" description="Este cliente ainda não possui eventos na timeline." />
             ) : (
-              <div className="relative pl-6 border-l-2 border-slate-200 space-y-6">
+              <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
                 {timeline.map((evt, idx) => (
-                  <div key={idx} className="relative group">
-                    {/* Timeline Node Icon */}
-                    <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-white border-2 border-[#001F5B] group-hover:scale-125 transition-transform" />
-                    
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 hover:border-slate-300 transition-colors">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-900">{evt.title}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">
+                  <div key={(evt as any).id || `${evt.type}-${evt.timestamp}-${idx}`} className="relative group">
+                    <span className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-[#001F5B] ring-4 ring-white" />
+                    <div className="bg-slate-50/70 p-3 rounded-lg border border-slate-200/60 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">{evt.title}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
                           {new Date(evt.timestamp).toLocaleString('pt-BR')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 mt-1">{evt.description}</p>
-                      
-                      {evt.metadata && Object.keys(evt.metadata).length > 0 && (
-                        <div className="mt-2 text-[10px] font-mono bg-white p-2 rounded border border-slate-200 text-slate-500 overflow-x-auto">
-                          {JSON.stringify(evt.metadata, null, 2)}
-                        </div>
-                      )}
+                      <p className="text-xs text-slate-600">{evt.description}</p>
                     </div>
                   </div>
                 ))}
@@ -303,213 +257,152 @@ export default function Customer360Page() {
           </Card>
         </TabsContent>
 
-        {/* 2. TRIPS TAB */}
+        {/* Tab: Trips */}
         <TabsContent value="trips">
-          <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px]">
-                  <tr>
-                    <th className="px-4 py-3">Destino</th>
-                    <th className="px-4 py-3">Título</th>
-                    <th className="px-4 py-3">Período</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Acesso Premium</th>
-                    <th className="px-4 py-3">Criado em</th>
-                    <th className="px-4 py-3 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {trips.length === 0 ? (
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {trips.length === 0 ? (
+              <EmptyState icon={MapPin} title="Nenhuma viagem criada" description="Este cliente ainda não criou nenhum roteiro no aplicativo." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                        Nenhuma viagem associada a este usuário.
-                      </td>
+                      <th className="px-4 py-3">Destino / Título</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Dias</th>
+                      <th className="px-4 py-3">Criada em</th>
+                      <th className="px-4 py-3 text-right">Ação</th>
                     </tr>
-                  ) : (
-                    trips.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-semibold text-slate-900">{t.destination}</td>
-                        <td className="px-4 py-3 text-slate-600">{t.title || 'Roteiro'}</td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {new Date(t.startDate).toLocaleDateString('pt-BR')} até {new Date(t.endDate).toLocaleDateString('pt-BR')}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {trips.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900">{t.destination}</div>
+                          <div className="text-[11px] text-slate-500">{t.title || 'Roteiro de Viagem'}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700">
-                            {t.status}
-                          </span>
+                          <StatusBadge status={t.status} />
                         </td>
-                        <td className="px-4 py-3">
-                          {t.premiumUnlocked ? (
-                            <span className="text-emerald-700 font-semibold">Liberado</span>
-                          ) : (
-                            <span className="text-slate-400">Gratuito</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-400 text-[11px]">
-                          {new Date(t.createdAt).toLocaleDateString('pt-BR')}
-                        </td>
+                        <td className="px-4 py-3 font-semibold">{(t as any).daysCount || '-'} dias</td>
+                        <td className="px-4 py-3 text-slate-500">{new Date(t.createdAt).toLocaleDateString('pt-BR')}</td>
                         <td className="px-4 py-3 text-right">
                           <Link href={`/trips/${t.id}`}>
-                            <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
-                              Ver Roteiro
+                            <Button variant="outline" size="sm" className="text-xs h-7 px-2">
+                              Ver Detalhes
                             </Button>
                           </Link>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
 
-        {/* 3. PURCHASES TAB */}
+        {/* Tab: Purchases */}
         <TabsContent value="purchases">
-          <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px]">
-                  <tr>
-                    <th className="px-4 py-3">ID da Compra</th>
-                    <th className="px-4 py-3">Produto</th>
-                    <th className="px-4 py-3">Valor</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Método</th>
-                    <th className="px-4 py-3">Data</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {purchases.length === 0 ? (
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {purchases.length === 0 ? (
+              <EmptyState icon={ShoppingBag} title="Nenhuma compra registrada" description="Este cliente ainda não realizou transações de pagamento." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                        Nenhuma compra registrada para este cliente.
-                      </td>
+                      <th className="px-4 py-3">ID Compra</th>
+                      <th className="px-4 py-3">Produto</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Valor</th>
+                      <th className="px-4 py-3">Data</th>
                     </tr>
-                  ) : (
-                    purchases.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-mono text-slate-900">{p.id.substring(0, 10)}...</td>
-                        <td className="px-4 py-3 font-medium text-slate-800">{p.productType}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">
-                          R$ {(p.finalAmount / 100).toFixed(2)}
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {purchases.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-mono font-semibold text-slate-900">{p.id.substring(0, 8)}...</td>
+                        <td className="px-4 py-3">{(p as any).product?.name || p.productType || 'Acesso Roteiro 2GO'}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            p.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {p.status}
-                          </span>
+                          <StatusBadge status={p.status} />
                         </td>
-                        <td className="px-4 py-3 text-slate-500">{p.paymentMethod || 'N/A'}</td>
-                        <td className="px-4 py-3 text-slate-400 text-[11px]">
-                          {new Date(p.createdAt).toLocaleString('pt-BR')}
-                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900">R$ {(p.finalAmount / 100).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-slate-500">{new Date(p.createdAt).toLocaleDateString('pt-BR')}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
 
-        {/* 4. GUEST JOURNEYS TAB */}
+        {/* Tab: Guest Journeys */}
         <TabsContent value="journeys">
-          <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px]">
-                  <tr>
-                    <th className="px-4 py-3">ID da Jornada</th>
-                    <th className="px-4 py-3">Origem</th>
-                    <th className="px-4 py-3">Destino Planejado</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Fingerprint</th>
-                    <th className="px-4 py-3">Iniciada em</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {guestJourneys.length === 0 ? (
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {guestJourneys.length === 0 ? (
+              <EmptyState icon={Layers} title="Nenhuma jornada anônima" description="Nenhuma atividade pré-cadastro associada a este usuário." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                        Nenhuma jornada anônima anterior associada.
-                      </td>
+                      <th className="px-4 py-3">Destino</th>
+                      <th className="px-4 py-3">Estágio</th>
+                      <th className="px-4 py-3">Origem</th>
+                      <th className="px-4 py-3">Data</th>
                     </tr>
-                  ) : (
-                    guestJourneys.map((gj) => (
-                      <tr key={gj.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-mono text-slate-900">{gj.id.substring(0, 10)}...</td>
-                        <td className="px-4 py-3 font-mono text-[10px] text-slate-600">{gj.origin}</td>
-                        <td className="px-4 py-3 font-medium text-slate-800">{gj.destination || 'Em definição'}</td>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {guestJourneys.map((j) => (
+                      <tr key={j.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{j.destination || 'Geral'}</td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">
-                            {gj.status}
-                          </span>
+                          <StatusBadge status={(j as any).stage || j.status} />
                         </td>
-                        <td className="px-4 py-3 font-mono text-[10px] text-slate-400">{gj.fingerprint || 'N/A'}</td>
-                        <td className="px-4 py-3 text-slate-400 text-[11px]">
-                          {new Date(gj.createdAt).toLocaleString('pt-BR')}
-                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-500">{j.origin || 'ORGANIC'}</td>
+                        <td className="px-4 py-3 text-slate-500">{new Date(j.createdAt).toLocaleDateString('pt-BR')}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
 
-        {/* 5. CAMPAIGNS RECEIVED TAB */}
-        <TabsContent value="campaigns">
-          <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px]">
-                  <tr>
-                    <th className="px-4 py-3">Campanha</th>
-                    <th className="px-4 py-3">Status do Envio</th>
-                    <th className="px-4 py-3">Enviado em</th>
-                    <th className="px-4 py-3">Entregue</th>
-                    <th className="px-4 py-3">Aberto</th>
-                    <th className="px-4 py-3">Clicado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {campaignsReceived.length === 0 ? (
+        {/* Tab: Communications */}
+        <TabsContent value="comms">
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {campaignsReceived.length === 0 ? (
+              <EmptyState icon={Megaphone} title="Nenhuma comunicação enviada" description="Nenhum e-mail de campanha ou remarketing foi disparado para este cliente." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                        Nenhuma campanha de e-mail enviada para este cliente.
-                      </td>
+                      <th className="px-4 py-3">Campanha</th>
+                      <th className="px-4 py-3">Assunto</th>
+                      <th className="px-4 py-3">Status Envio</th>
+                      <th className="px-4 py-3">Enviado em</th>
                     </tr>
-                  ) : (
-                    campaignsReceived.map((cr) => (
-                      <tr key={cr.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-semibold text-slate-900">{cr.campaignTitle}</td>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {campaignsReceived.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{c.campaignTitle || (c as any).campaignName}</td>
+                        <td className="px-4 py-3 text-slate-600">{(c as any).subject || '-'}</td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700">
-                            {cr.status}
-                          </span>
+                          <StatusBadge status={c.status} />
                         </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {cr.sentAt ? new Date(cr.sentAt).toLocaleString('pt-BR') : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {cr.deliveredAt ? 'Sim' : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {cr.openedAt ? 'Sim' : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {cr.clickedAt ? 'Sim' : '-'}
-                        </td>
+                        <td className="px-4 py-3 text-slate-500">{c.sentAt ? new Date(c.sentAt).toLocaleDateString('pt-BR') : '-'}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>

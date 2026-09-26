@@ -24,6 +24,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/admin/page-header';
+import { FilterBar } from '@/components/admin/filter-bar';
+import { StatusBadge } from '@/components/admin/status-badge';
+import { EmptyState } from '@/components/admin/empty-state';
 import { 
   listCampaigns, 
   createCampaign, 
@@ -122,277 +126,247 @@ export default function MarketingCampaignsPage() {
     }
   };
 
-  const handleDryRun = async (campaignId: string) => {
+  const handleDryRun = async (id: string) => {
     setIsDryRunning(true);
     setDryRunResult(null);
     try {
-      const res = await dryRunCampaign(campaignId);
+      const res = await dryRunCampaign(id);
       setDryRunResult(res);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Falha ao executar Dry-Run da campanha.');
+      console.error('Dry run failed', err);
+      alert('Erro ao executar simulação de audiência.');
     } finally {
       setIsDryRunning(false);
     }
   };
 
-  const handleSendTest = async () => {
-    if (!testCampaignId || !testEmailAddress.trim()) {
-      alert('Informe um e-mail válido para envio de teste.');
-      return;
-    }
+  const handleSendTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testCampaignId || !testEmailAddress.trim()) return;
 
     setIsSendingTest(true);
     try {
-      const res = await sendTestEmail(testCampaignId, testEmailAddress.trim());
+      await sendTestEmail(testCampaignId, testEmailAddress.trim());
       alert(`E-mail de teste enviado com sucesso para ${testEmailAddress}!`);
       setTestCampaignId(null);
       setTestEmailAddress('');
     } catch (err: any) {
+      console.error('Send test email failed', err);
       alert(err.response?.data?.message || 'Erro ao enviar e-mail de teste.');
     } finally {
       setIsSendingTest(false);
     }
   };
 
-  const handleScheduleOrSend = async (campaignId: string) => {
-    if (!confirm('Deseja realmente iniciar o envio/agendamento desta campanha? O Core aplicará filtros estritos de consentimento LGPD.')) {
-      return;
-    }
-
+  const handleTriggerSend = async (id: string) => {
+    if (!confirm('Deseja iniciar o envio / agendamento desta campanha?')) return;
     try {
-      const res = await scheduleOrSendCampaign(campaignId);
-      alert(res.message || 'Campanha disparada/agendada com sucesso.');
+      await scheduleOrSendCampaign(id);
       await fetchCampaigns();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao disparar campanha.');
+      console.error('Trigger send failed', err);
+      alert(err.response?.data?.message || 'Erro ao processar disparo.');
     }
   };
 
-  const handleCancel = async (campaignId: string) => {
-    if (!confirm('Tem certeza que deseja cancelar esta campanha?')) return;
+  const handleCancelCampaign = async (id: string) => {
+    if (!confirm('Deseja cancelar esta campanha?')) return;
     try {
-      await cancelCampaign(campaignId);
+      await cancelCampaign(id);
       await fetchCampaigns();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao cancelar campanha.');
-    }
-  };
-
-  const getStatusBadge = (st: string) => {
-    switch (st) {
-      case 'DRAFT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">Rascunho</span>;
-      case 'SCHEDULED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Agendada</span>;
-      case 'PROCESSING':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 animate-pulse">Enviando...</span>;
-      case 'SENT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">Enviada</span>;
-      case 'PARTIALLY_SENT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-800">Parcial</span>;
-      case 'FAILED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-800">Falha</span>;
-      case 'CANCELLED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-600">Cancelada</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-800">{st}</span>;
+      console.error('Cancel campaign failed', err);
+      alert('Erro ao cancelar campanha.');
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
+      {/* Page Header */}
+      <PageHeader
+        category="MARKETING & REMARKETING"
+        title="Campanhas de E-mail & Engajamento"
+        subtitle="Ferramenta de Growth: crie campanhas, teste templates, simule audiência (Dry-Run) e acompanhe disparos"
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing' },
+          { label: 'Campanhas' }
+        ]}
+        actions={
           <div className="flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-[#FF6A00]" />
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Marketing & Campanhas de E-mail</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchCampaigns}
+              disabled={isLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+              Atualizar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Nova Campanha
+            </Button>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Gestão segura de campanhas com proteção fail-closed, validação prévia de audiência (Dry-Run) e conformidade LGPD.
-          </p>
-        </div>
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          <Link href="/marketing/segments">
-            <Button variant="outline" size="sm" className="text-xs flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" />
-              Segmentos
-            </Button>
-          </Link>
-          <Link href="/marketing/templates">
-            <Button variant="outline" size="sm" className="text-xs flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" />
-              Templates
-            </Button>
-          </Link>
-          <Button
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-[#FF6A00] hover:bg-[#E55F00] text-white text-xs flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Campanha
-          </Button>
+      {/* Production Safety Banner */}
+      <div className="p-3 bg-[#001F5B]/5 border border-[#001F5B]/15 rounded-xl flex items-center justify-between text-xs text-slate-700">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-md bg-[#001F5B] text-white shrink-0">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-slate-900">Trava de Segurança de Produção: </span>
+            <span className="text-slate-600">
+              <code className="bg-slate-200/80 text-slate-800 px-1 py-0.5 rounded font-mono font-bold">MARKETING_EMAIL_ENABLED=false</code>.
+              Nenhum e-mail de lote é disparado em produção sem liberação prévia do servidor. Use os botões de <b>Simulação (Dry-Run)</b> e <b>Envio de Teste</b> com segurança.
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Safety Notice Banner */}
-      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-3">
-        <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0" />
-        <div>
-          <b>Arquitetura Fail-Closed Ativa:</b> Nenhum e-mail de marketing é enviado sem consentimento expresso (LGPD). Em ambiente Production com provider pendente, a execução real em massa permanece bloqueada no Core.
-        </div>
+      {/* Navigation Sub-Tabs */}
+      <div className="flex items-center gap-2">
+        <Link href="/marketing" className="px-3 py-1.5 rounded-lg bg-[#001F5B] text-white text-xs font-semibold">
+          Campanhas ({campaigns.length})
+        </Link>
+        <Link href="/marketing/templates" className="px-3 py-1.5 rounded-lg bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 text-xs font-medium">
+          Templates de E-mail ({templates.length})
+        </Link>
+        <Link href="/marketing/segments" className="px-3 py-1.5 rounded-lg bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 text-xs font-medium">
+          Segmentos de Audiência ({segments.length})
+        </Link>
       </div>
 
-      {/* Filter and Stats Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700"
-          >
-            <option value="">Todos os Status</option>
-            <option value="DRAFT">Rascunhos</option>
-            <option value="SCHEDULED">Agendadas</option>
-            <option value="SENT">Enviadas</option>
-            <option value="CANCELLED">Canceladas</option>
-          </select>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchCampaigns}
-            disabled={isLoading}
-            className="h-8 text-xs text-slate-500"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        <div className="text-xs text-slate-500 font-medium">
-          Total de Campanhas: <b>{campaigns.length}</b>
-        </div>
-      </div>
+      {/* Filter Bar */}
+      <FilterBar
+        hasActiveFilters={Boolean(filterStatus)}
+        onResetFilters={() => setFilterStatus('')}
+      >
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
+        >
+          <option value="">Todos os Status de Campanha</option>
+          <option value="DRAFT">DRAFT (Rascunho)</option>
+          <option value="SCHEDULED">SCHEDULED (Agendado)</option>
+          <option value="SENDING">SENDING (Em Envio)</option>
+          <option value="SENT">SENT (Enviado)</option>
+          <option value="FAILED">FAILED (Falhou)</option>
+        </select>
+      </FilterBar>
 
       {/* Campaigns Table */}
-      <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
+      <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
+            <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
               <tr>
-                <th className="px-4 py-3">Campanha / Assunto</th>
-                <th className="px-4 py-3">Segmento</th>
+                <th className="px-4 py-3">Título / Assunto</th>
+                <th className="px-4 py-3">Segmento Alvo</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-center">Audiência</th>
-                <th className="px-4 py-3 text-center">Enviados</th>
+                <th className="px-4 py-3 text-center">Audiência (Alvo)</th>
                 <th className="px-4 py-3 text-center">Entregues</th>
-                <th className="px-4 py-3 text-center">Abertos</th>
-                <th className="px-4 py-3">Criado em</th>
-                <th className="px-4 py-3 text-right">Ações Seguras</th>
+                <th className="px-4 py-3">Criada em</th>
+                <th className="px-4 py-3 text-right">Ações de Operação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#FF6A00]" />
-                    Carregando campanhas do Core...
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
+                    Carregando módulo de marketing...
                   </td>
                 </tr>
               ) : campaigns.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
-                    Nenhuma campanha encontrada. Crie sua primeira campanha para iniciar.
+                  <td colSpan={7} className="p-0">
+                    <EmptyState
+                      icon={Megaphone}
+                      title="Nenhuma campanha encontrada"
+                      description="Crie a primeira campanha de marketing ou ajuste o filtro de status."
+                      action={{ label: 'Nova Campanha', onClick: () => setIsCreateModalOpen(true) }}
+                    />
                   </td>
                 </tr>
               ) : (
                 campaigns.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50">
+                  <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Title & Subject */}
                     <td className="px-4 py-3">
-                      <div className="font-bold text-slate-900">{c.title}</div>
-                      <div className="text-[11px] text-slate-500 truncate max-w-xs">{c.subject}</div>
+                      <div className="font-semibold text-slate-900">{c.title}</div>
+                      <div className="text-[11px] text-slate-500 italic">&quot;{c.subject}&quot;</div>
                     </td>
 
+                    {/* Segment */}
                     <td className="px-4 py-3">
-                      <span className="font-medium text-[11px] text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                        {c.segment?.name || 'Todos com Consentimento'}
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
+                        {c.segment?.name || 'Toda a Base LGPD'}
                       </span>
                     </td>
 
+                    {/* Status */}
                     <td className="px-4 py-3">
-                      {getStatusBadge(c.status)}
+                      <StatusBadge status={c.status} />
                     </td>
 
-                    <td className="px-4 py-3 text-center font-semibold text-slate-900">
-                      {c.targetCount}
+                    {/* Audience Count */}
+                    <td className="px-4 py-3 text-center font-bold text-slate-900 font-sans">
+                      {c.targetCount || 0}
                     </td>
 
-                    <td className="px-4 py-3 text-center text-slate-600">
-                      {c.sentCount}
+                    {/* Sent Count */}
+                    <td className="px-4 py-3 text-center font-bold text-emerald-700 font-sans">
+                      {c.sentCount || 0}
                     </td>
 
-                    <td className="px-4 py-3 text-center text-emerald-700 font-semibold">
-                      {c.deliveredCount}
-                    </td>
-
-                    <td className="px-4 py-3 text-center text-purple-700 font-semibold">
-                      {c.openedCount}
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-400 text-[11px]">
+                    {/* Date */}
+                    <td className="px-4 py-3 text-slate-500 text-[11px]">
                       {new Date(c.createdAt).toLocaleDateString('pt-BR')}
                     </td>
 
+                    {/* Actions */}
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Dry Run Button */}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDryRun(c.id)}
-                          className="h-7 text-[11px] px-2 border-blue-200 text-blue-700 hover:bg-blue-50"
-                          title="Simular audiência e exclusões LGPD"
+                          disabled={isDryRunning}
+                          className="text-xs h-7 px-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          title="Simulação Dry-Run de Audiência"
                         >
+                          <Play className="w-3.5 h-3.5 mr-1 text-[#FF6A00]" />
                           Dry-Run
                         </Button>
 
-                        {/* Send Test Email */}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setTestCampaignId(c.id);
-                            setTestEmailAddress('');
-                          }}
-                          className="h-7 text-[11px] px-2 border-slate-200 text-slate-700 hover:bg-slate-100"
-                          title="Enviar e-mail de teste único"
+                          onClick={() => setTestCampaignId(c.id)}
+                          className="text-xs h-7 px-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          title="Enviar E-mail de Teste"
                         >
-                          <Send className="w-3 h-3 mr-1" />
+                          <Mail className="w-3.5 h-3.5 mr-1 text-[#001F5B]" />
                           Teste
                         </Button>
 
-                        {/* Schedule / Send */}
                         {c.status === 'DRAFT' && (
                           <Button
                             size="sm"
-                            onClick={() => handleScheduleOrSend(c.id)}
-                            className="h-7 text-[11px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => handleTriggerSend(c.id)}
+                            className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-7 px-2.5 font-semibold cursor-pointer"
                           >
-                            <Play className="w-3 h-3 mr-1" />
+                            <Send className="w-3 h-3 mr-1" />
                             Disparar
-                          </Button>
-                        )}
-
-                        {/* Cancel */}
-                        {c.status === 'SCHEDULED' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCancel(c.id)}
-                            className="h-7 text-[11px] px-2 text-red-600 hover:bg-red-50"
-                          >
-                            Cancelar
                           </Button>
                         )}
                       </div>
@@ -405,244 +379,77 @@ export default function MarketingCampaignsPage() {
         </div>
       </Card>
 
-      {/* CREATE CAMPAIGN MODAL */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
-            <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100">
-              Criar Nova Campanha de E-mail
-            </h2>
-
-            <form onSubmit={handleCreateCampaign} className="space-y-4 mt-4 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Título Interno da Campanha</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Remarketing - Abandono de Checkout Semana 38"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Segmento Alvo</label>
-                  <select
-                    value={newSegmentId}
-                    onChange={(e) => setNewSegmentId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
-                  >
-                    <option value="">Todos com Consentimento Marketing</option>
-                    {segments.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Template Base (Opcional)</label>
-                  <select
-                    value={newTemplateId}
-                    onChange={(e) => setNewTemplateId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
-                  >
-                    <option value="">Sem Template (Conteúdo Livre)</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title} ({t.category})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Assunto do E-mail</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Seu roteiro exclusivo para Roma está pronto para você"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Preheader (Texto de Apoio)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Descubra cada detalhe da sua próxima experiência inesquecível..."
-                  value={newPreheader}
-                  onChange={(e) => setNewPreheader(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Conteúdo da Mensagem</label>
-                <textarea
-                  required
-                  rows={6}
-                  placeholder="Olá {nome}, preparamos um roteiro inteligente para você aproveitar ao máximo cada momento..."
-                  value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-sans"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Variáveis seguras aceitas: &#123;nome&#125;, &#123;destino&#125;, &#123;ctaUrl&#125;
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Texto do Botão (CTA)</label>
-                  <input
-                    type="text"
-                    value={newCtaText}
-                    onChange={(e) => setNewCtaText(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Link do Botão (URL)</label>
-                  <input
-                    type="url"
-                    value={newCtaUrl}
-                    onChange={(e) => setNewCtaUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCreateModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSubmitting}
-                  className="bg-[#FF6A00] hover:bg-[#E55F00] text-white"
-                >
-                  {isSubmitting ? 'Salvando...' : 'Salvar Campanha'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* DRY RUN RESULT MODAL */}
+      {/* Modal: Dry Run Result */}
       {dryRunResult && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Relatório de Auditoria Dry-Run
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Play className="w-4 h-4 text-[#FF6A00]" />
+                Resultado da Simulação (Dry-Run)
               </h3>
-              <button
-                onClick={() => setDryRunResult(null)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
-              >
-                ✕
-              </button>
+              <Button variant="ghost" size="sm" onClick={() => setDryRunResult(null)} className="h-7 text-xs">
+                Fechar
+              </Button>
             </div>
 
-            <div className="space-y-2">
-              <p className="font-semibold text-slate-900">{dryRunResult.title}</p>
-              <div className="grid grid-cols-3 gap-2 py-2">
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">Total Identificado</div>
-                  <div className="text-base font-bold text-slate-900 mt-0.5">{dryRunResult.totalAudienceIdentified}</div>
-                </div>
-                <div className="bg-red-50 p-2.5 rounded-lg border border-red-200 text-center">
-                  <div className="text-[10px] text-red-600 uppercase font-semibold">Sem Consentimento</div>
-                  <div className="text-base font-bold text-red-700 mt-0.5">{dryRunResult.excludedNoMarketingConsent}</div>
-                </div>
-                <div className="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 text-center">
-                  <div className="text-[10px] text-emerald-600 uppercase font-semibold">Destinatários Válidos</div>
-                  <div className="text-base font-bold text-emerald-800 mt-0.5">{dryRunResult.validDeliverableRecipients}</div>
-                </div>
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
+                <p className="font-semibold text-slate-800">Total de Destinatários Elegíveis: <span className="text-lg font-bold text-[#001F5B]">{dryRunResult.eligibleUsersCount}</span></p>
+                <p className="text-slate-500">Regra LGPD: Apenas usuários com consentimento ativo de marketing são computados.</p>
               </div>
 
-              <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200 text-emerald-900">
-                <b>Proteção Certificada:</b> Usuários sem consentimento LGPD foram excluídos da fila de envio antes de qualquer contato com o provider.
-              </div>
-
-              {dryRunResult.sampleRecipients && dryRunResult.sampleRecipients.length > 0 && (
+              {dryRunResult.sampleUsers && dryRunResult.sampleUsers.length > 0 && (
                 <div>
-                  <span className="font-bold text-slate-700 block mb-1">Amostra de Destinatários Válidos:</span>
-                  <div className="bg-slate-50 p-2 rounded border border-slate-200 max-h-32 overflow-y-auto space-y-1">
-                    {dryRunResult.sampleRecipients.map((r: any) => (
-                      <div key={r.id} className="text-[11px] text-slate-600">
-                        <b>{r.fullName}</b> ({r.email})
-                      </div>
+                  <span className="font-bold text-slate-700 block mb-1">Amostra de E-mails Selecionados:</span>
+                  <div className="max-h-40 overflow-y-auto p-2 bg-slate-900 text-slate-100 rounded-lg font-mono text-[11px] space-y-1">
+                    {dryRunResult.sampleUsers.map((u: any, idx: number) => (
+                      <div key={idx} className="truncate">{u.email} ({u.fullName})</div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
 
-            <Button
-              className="w-full bg-[#001F5B] hover:bg-[#001744] text-white"
-              onClick={() => setDryRunResult(null)}
-            >
-              Fechar Auditoria
-            </Button>
+            <div className="flex justify-end pt-2">
+              <Button onClick={() => setDryRunResult(null)} className="bg-[#001F5B] text-white text-xs h-8 px-4 font-semibold">
+                Entendido
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* SEND TEST MODAL */}
+      {/* Modal: Send Test Email */}
       {testCampaignId && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-slate-900">Enviar E-mail de Teste</h3>
-            <p className="text-slate-500">
-              Dispara uma mensagem de teste real para validar assunto, preheader, formatação e layout mobile/desktop.
-            </p>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleSendTest} className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fade-in">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Enviar E-mail de Teste</h3>
+              <p className="text-xs text-slate-500">Dispara uma prévia real da campanha para o e-mail informado.</p>
+            </div>
 
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">E-mail do Destinatário de Teste</label>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">E-mail de Destino do Teste *</label>
               <input
                 type="email"
-                required
-                placeholder="seu-email@dominio.com"
+                placeholder="seu.email@roteiros2go.com"
                 value={testEmailAddress}
                 onChange={(e) => setTestEmailAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                required
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
               />
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTestCampaignId(null)}
-              >
+              <Button type="button" variant="outline" onClick={() => setTestCampaignId(null)} className="text-xs h-8">
                 Cancelar
               </Button>
-              <Button
-                size="sm"
-                disabled={isSendingTest}
-                onClick={handleSendTest}
-                className="bg-[#001F5B] hover:bg-[#001744] text-white"
-              >
-                {isSendingTest ? 'Enviando...' : 'Enviar Teste'}
+              <Button type="submit" disabled={isSendingTest} className="bg-[#001F5B] text-white text-xs h-8 px-4 font-semibold">
+                {isSendingTest ? 'Enviando...' : 'Enviar E-mail de Teste'}
               </Button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>

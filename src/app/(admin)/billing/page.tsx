@@ -26,14 +26,7 @@ import {
   Trip,
 } from '@/services/trips.service';
 import { User } from '@/services/users.service';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+
 import {
   Sheet,
   SheetContent,
@@ -43,18 +36,23 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/admin/page-header';
+import { MetricCard } from '@/components/admin/metric-card';
+import { FilterBar } from '@/components/admin/filter-bar';
+import { StatusBadge } from '@/components/admin/status-badge';
+import { EmptyState } from '@/components/admin/empty-state';
+
 import {
   RotateCw,
   CreditCard,
   CheckCircle2,
   AlertCircle,
   TrendingUp,
-  Filter,
   DollarSign,
   User as UserIcon,
   ShoppingBag,
-  ExternalLink,
   Crown,
   Lock,
   Loader2,
@@ -63,6 +61,12 @@ import {
   Tag,
   Plus,
   Percent,
+  Coins,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 
 export default function BillingAdminPage() {
@@ -112,13 +116,7 @@ export default function BillingAdminPage() {
   const [productPrice, setProductPrice] = useState('');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
-  // Confirmation state
-  const [confirmAction, setConfirmAction] = useState<{
-    type: 'unlock' | 'lock';
-    tripId: string;
-    purchaseId: string;
-  } | null>(null);
-
+  // Fetch KPIs
   const fetchKPIs = useCallback(async () => {
     setIsKpiLoading(true);
     try {
@@ -131,857 +129,656 @@ export default function BillingAdminPage() {
     }
   }, []);
 
-  const fetchFilterData = useCallback(async () => {
-    try {
-      const [prodsData, usersData, couponsData] = await Promise.all([
-        listProducts(),
-        listUsersForSelection(),
-        listCoupons(),
-      ]);
-      setProducts(prodsData);
-      setUsers(usersData);
-      setCoupons(couponsData);
-    } catch (err) {
-      console.error('Error fetching filter data:', err);
-    }
-  }, []);
-
+  // Fetch Purchases
   const fetchPurchases = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const params: any = {
+      const filters: any = {
         page: currentPage,
         limit: 10,
       };
 
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (userIdFilter !== 'ALL') params.userId = userIdFilter;
-      if (productIdFilter !== 'ALL') params.productId = productIdFilter;
+      if (statusFilter !== 'ALL') filters.status = statusFilter;
+      if (userIdFilter !== 'ALL') filters.userId = userIdFilter;
+      if (productIdFilter !== 'ALL') filters.productId = productIdFilter;
 
-      const response = await listPurchases(params);
-      setPurchases(response.data || []);
-      setMeta(response.meta || { total: 0, page: 1, limit: 10, totalPages: 0 });
-    } catch (err: any) {
+      const response = await listPurchases(filters);
+      setPurchases(response.data);
+      setMeta(response.meta);
+    } catch (err) {
       console.error('Error fetching purchases:', err);
-      setError('Não foi possível carregar as transações de compras.');
+      setError('Não foi possível carregar o histórico de transações.');
     } finally {
       setIsLoading(false);
     }
   }, [currentPage, statusFilter, userIdFilter, productIdFilter]);
 
+  // Fetch Catalog Data
+  const fetchCatalogData = useCallback(async () => {
+    try {
+      const [prodsData, coupData, usersData] = await Promise.all([
+        listProducts().catch(() => []),
+        listCoupons().catch(() => []),
+        listUsersForSelection().catch(() => []),
+      ]);
+      setProducts(prodsData);
+      setCoupons(coupData);
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Error fetching catalog data:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchKPIs();
-    fetchFilterData();
-  }, [fetchKPIs, fetchFilterData]);
+    fetchCatalogData();
+  }, [fetchKPIs, fetchCatalogData]);
 
   useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases]);
+    if (activeTab === 'purchases') {
+      fetchPurchases();
+    }
+  }, [activeTab, fetchPurchases]);
 
-  const handleViewDetails = async (purchase: Purchase) => {
+  // View purchase details
+  const handleOpenDetails = async (purchaseId: string) => {
     setIsDetailsOpen(true);
+    setSelectedPurchase(null);
     setAssociatedTrip(null);
-    setConfirmAction(null);
-
     try {
-      const details = await getPurchaseDetails(purchase.id);
+      const details = await getPurchaseDetails(purchaseId);
       setSelectedPurchase(details);
-
       if (details.tripId) {
-        const trip = await getTripDetails(details.tripId);
-        setAssociatedTrip(trip);
+        const tripData = await getTripDetails(details.tripId).catch(() => null);
+        setAssociatedTrip(tripData);
       }
     } catch (err) {
-      console.error('Error fetching purchase details:', err);
-      setSelectedPurchase(purchase);
+      console.error('Error loading purchase details:', err);
     }
   };
 
-  const handleTogglePremium = async (type: 'unlock' | 'lock', tripId: string, purchaseId: string) => {
+  const handleUnlockTrip = async (tripId: string) => {
     setIsActionLoading(true);
     try {
-      if (type === 'unlock') {
-        await unlockPremium(tripId);
-      } else {
-        await lockPremium(tripId);
+      await unlockPremium(tripId);
+      alert('Roteiro desbloqueado com sucesso!');
+      if (selectedPurchase) {
+        handleOpenDetails(selectedPurchase.id);
       }
-
-      if (selectedPurchase && selectedPurchase.id === purchaseId) {
-        const trip = await getTripDetails(tripId);
-        setAssociatedTrip(trip);
-      }
-
-      setConfirmAction(null);
-      fetchPurchases();
-      fetchKPIs();
     } catch (err) {
-      console.error('Failed to change premium status:', err);
-      alert('Erro ao atualizar status de acesso premium da viagem.');
+      console.error('Error unlocking trip:', err);
+      alert('Erro ao desbloquear o roteiro.');
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleCreateCoupon = async (e: React.FormEvent) => {
+  const handleCreateCouponSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCode || !couponValue) return;
-
     setIsSavingCoupon(true);
     try {
       await createCoupon({
-        code: couponCode.trim().toUpperCase(),
+        code: couponCode.toUpperCase().trim(),
         discountType: couponType,
-        discountValue: parseFloat(couponValue),
+        discountValue: Number(couponValue),
+        active: true,
       });
       setIsCouponModalOpen(false);
       setCouponCode('');
       setCouponValue('');
-      const updatedCoupons = await listCoupons();
-      setCoupons(updatedCoupons);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Erro ao criar cupom');
+      fetchCatalogData();
+    } catch (err) {
+      console.error('Error creating coupon:', err);
+      alert('Erro ao criar cupom de desconto.');
     } finally {
       setIsSavingCoupon(false);
     }
   };
 
-  const handleToggleCouponActive = async (id: string, currentActive: boolean) => {
-    try {
-      await updateCoupon(id, { active: !currentActive });
-      const updatedCoupons = await listCoupons();
-      setCoupons(updatedCoupons);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Erro ao atualizar cupom');
-    }
-  };
-
-  const handleCreateProduct = async (e: React.FormEvent) => {
+  const handleCreateProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productName || !productPrice) return;
-
     setIsSavingProduct(true);
     try {
       await createProduct({
-        name: productName,
+        name: productName.trim(),
         type: productType,
-        price: parseFloat(productPrice),
+        price: Number(productPrice) * 100, // in cents
+        currency: 'BRL',
       });
       setIsProductModalOpen(false);
       setProductName('');
       setProductPrice('');
-      const updatedProds = await listProducts();
-      setProducts(updatedProds);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Erro ao criar produto');
+      fetchCatalogData();
+    } catch (err) {
+      console.error('Error creating product:', err);
+      alert('Erro ao criar produto no catálogo.');
     } finally {
       setIsSavingProduct(false);
     }
   };
 
-  const handleToggleProductActive = async (id: string, currentActive: boolean) => {
-    try {
-      if (currentActive) {
-        await deactivateProduct(id);
-      } else {
-        await updateProduct(id, { active: true });
-      }
-      const updatedProds = await listProducts();
-      setProducts(updatedProds);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Erro ao atualizar produto');
-    }
+  const formatCurrency = (amountInCents?: number) => {
+    if (amountInCents === undefined || amountInCents === null) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountInCents / 100);
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'PAID':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'PENDING':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'CANCELLED':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
-      case 'REFUNDED':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'CHARGEBACK':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      default:
-        return 'bg-slate-50 text-slate-600 border-slate-200';
-    }
-  };
+  const hasActiveFilters = Boolean(userIdFilter !== 'ALL' || statusFilter !== 'ALL' || productIdFilter !== 'ALL');
 
-  const translateStatus = (status: string) => {
-    switch (status) {
-      case 'PAID': return 'Pago';
-      case 'PENDING': return 'Pendente';
-      case 'CANCELLED': return 'Cancelado';
-      case 'EXPIRED': return 'Expirado';
-      case 'REFUNDED': return 'Reembolsado';
-      case 'CHARGEBACK': return 'Contestação (Chargeback)';
-      default: return status;
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const resetFilters = () => {
+    setUserIdFilter('ALL');
+    setStatusFilter('ALL');
+    setProductIdFilter('ALL');
+    setCurrentPage(1);
   };
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#001F5B] font-heading">Monetização e Operação</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie compras, cupons de desconto, produtos e suporte operacional.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              fetchKPIs();
-              fetchPurchases();
-              fetchFilterData();
-            }}
-            className="h-9 shrink-0 gap-2 border-slate-200 hover:bg-slate-50 cursor-pointer"
-          >
-            <RotateCw className="w-4 h-4" />
-            Atualizar
-          </Button>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-4">
-        <button
-          onClick={() => setActiveTab('purchases')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'purchases'
-              ? 'border-[#001F5B] text-[#001F5B]'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          Transações e Compras
-        </button>
-        <button
-          onClick={() => setActiveTab('coupons')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'coupons'
-              ? 'border-[#001F5B] text-[#001F5B]'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Tag className="w-4 h-4" />
-          Cupons ({coupons.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'products'
-              ? 'border-[#001F5B] text-[#001F5B]'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          Produtos ({products.length})
-        </button>
-      </div>
-
-      {/* TAB 1: PURCHASES */}
-      {activeTab === 'purchases' && (
-        <>
-          {/* KPI Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-5">
-            <Card className="shadow-xs border-slate-100 hover:shadow-md transition-all duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Compras Totais</span>
-                  <div className="p-2 bg-slate-50 text-slate-500 rounded-md">
-                    <ShoppingBag className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  {isKpiLoading ? (
-                    <div className="h-7 w-20 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    <span className="text-2xl font-bold text-slate-800">{kpis.totalPurchases}</span>
-                  )}
-                  <p className="text-[10px] text-slate-400 mt-1">Transações registradas</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xs border-slate-100 hover:shadow-md transition-all duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Compras Pagas</span>
-                  <div className="p-2 bg-emerald-50 text-emerald-600 rounded-md">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  {isKpiLoading ? (
-                    <div className="h-7 w-20 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    <span className="text-2xl font-bold text-emerald-600">{kpis.paidPurchases}</span>
-                  )}
-                  <p className="text-[10px] text-slate-400 mt-1">Pagamentos processados</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xs border-slate-100 hover:shadow-md transition-all duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pendentes</span>
-                  <div className="p-2 bg-amber-50 text-amber-600 rounded-md">
-                    <AlertCircle className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  {isKpiLoading ? (
-                    <div className="h-7 w-20 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    <span className="text-2xl font-bold text-amber-600">{kpis.pendingPurchases}</span>
-                  )}
-                  <p className="text-[10px] text-slate-400 mt-1">Aguardando pagamento</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xs border-slate-100 hover:shadow-md transition-all duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Receita Total</span>
-                  <div className="p-2 bg-emerald-50 text-emerald-600 rounded-md">
-                    <DollarSign className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  {isKpiLoading ? (
-                    <div className="h-7 w-28 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    <span className="text-2xl font-bold text-slate-800">{formatCurrency(kpis.totalRevenue)}</span>
-                  )}
-                  <p className="text-[10px] text-slate-400 mt-1">Faturamento líquido</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xs border-slate-100 hover:shadow-md transition-all duration-200 bg-[#001F5B]/5">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <span className="text-xs font-semibold text-[#001F5B] uppercase tracking-wider">Receita do Mês</span>
-                  <div className="p-2 bg-[#001F5B]/10 text-[#001F5B] rounded-md">
-                    <TrendingUp className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  {isKpiLoading ? (
-                    <div className="h-7 w-28 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    <span className="text-2xl font-bold text-[#001F5B]">{formatCurrency(kpis.monthRevenue)}</span>
-                  )}
-                  <p className="text-[10px] text-slate-400 mt-1">Faturamento do mês atual</p>
-                </div>
-              </CardContent>
-            </Card>
+      <PageHeader
+        category="COMERCIAL & OPERAÇÕES"
+        title="Gestão Comercial, Compras & Cupons"
+        subtitle="Acompanhamento financeiro em tempo real, catálogo de produtos e cupons de desconto 2GO"
+        breadcrumbs={[
+          { label: 'Comercial', href: '/billing' },
+          { label: 'Compras & Cupons' }
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchKPIs();
+                fetchPurchases();
+                fetchCatalogData();
+              }}
+              disabled={isLoading || isKpiLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading || isKpiLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+              Atualizar
+            </Button>
           </div>
+        }
+      />
 
-          {/* Purchases Data Table */}
-          <Card className="shadow-xs border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4.5 h-4.5 text-[#001F5B]" />
-                <h3 className="font-bold text-slate-800">Transações de Compras</h3>
-              </div>
-              <span className="text-xs text-muted-foreground font-semibold">
-                Mostrando {purchases.length} de {meta.total} registros
-              </span>
-            </div>
+      {/* 4 Financial KPI Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="FATURAMENTO TOTAL"
+          value={formatCurrency(kpis.totalRevenue)}
+          subtitle="Receita acumulada confirmada"
+          icon={Coins}
+        />
+        <MetricCard
+          title="FATURAMENTO DO MÊS"
+          value={formatCurrency(kpis.monthRevenue)}
+          subtitle="Receita bruta no mês vigente"
+          icon={TrendingUp}
+        />
+        <MetricCard
+          title="COMPRAS APROVADAS"
+          value={kpis.paidPurchases}
+          subtitle="Transações pagas com sucesso"
+          icon={CheckCircle2}
+        />
+        <MetricCard
+          title="COMPRAS PENDENTES"
+          value={kpis.pendingPurchases}
+          subtitle="Aguardando confirmação de pagamento"
+          icon={CreditCard}
+        />
+      </div>
 
-            {isLoading ? (
-              <div className="p-20 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-10 h-10 animate-spin text-[#001F5B]" />
-                <p className="text-sm font-semibold">Carregando lista de transações...</p>
-              </div>
-            ) : purchases.length === 0 ? (
-              <div className="p-20 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                <ShoppingBag className="w-12 h-12 text-slate-300" />
-                <p className="font-semibold text-slate-500">Nenhuma compra encontrada</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead className="font-semibold text-slate-700 w-[140px]">ID da Compra</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Comprador</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Produto / Cupom</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-right">Valor Final</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Data da Transação</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {purchases.map((purchase) => (
-                      <TableRow key={purchase.id} className="hover:bg-slate-50/50 transition-colors duration-150">
-                        <TableCell className="font-mono text-xs text-slate-500 font-medium">
-                          {purchase.id.substring(0, 8)}...
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 text-sm">
-                              {purchase.user?.fullName || 'Usuário Sem Nome'}
-                            </span>
-                            <span className="text-xs text-slate-400 font-medium">
-                              {purchase.user?.email}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700 text-sm">{purchase.product?.name}</span>
-                            {purchase.coupon && (
-                              <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider flex items-center gap-1">
-                                <Tag className="w-3 h-3" /> Cupom: {purchase.coupon.code}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold text-slate-900 text-right">
-                          {formatCurrency(Number(purchase.finalAmount || purchase.amount))}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadgeClass(purchase.status)}`}>
-                            {translateStatus(purchase.status)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-slate-600 text-xs font-medium">
-                          {formatDate(purchase.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
+      {/* Tabs Section */}
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <TabsList className="bg-white p-1 border border-slate-200/90 rounded-xl shadow-2xs">
+            <TabsTrigger value="purchases" className="text-xs font-semibold px-4 py-1.5">
+              Histórico de Compras ({meta.total || purchases.length})
+            </TabsTrigger>
+            <TabsTrigger value="products" className="text-xs font-semibold px-4 py-1.5">
+              Produtos ({products.length})
+            </TabsTrigger>
+            <TabsTrigger value="coupons" className="text-xs font-semibold px-4 py-1.5">
+              Cupons de Desconto ({coupons.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {activeTab === 'coupons' && (
+            <Button
+              size="sm"
+              onClick={() => setIsCouponModalOpen(true)}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Novo Cupom de Desconto
+            </Button>
+          )}
+
+          {activeTab === 'products' && (
+            <Button
+              size="sm"
+              onClick={() => setIsProductModalOpen(true)}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Novo Produto no Catálogo
+            </Button>
+          )}
+        </div>
+
+        {/* Tab 1: Purchases */}
+        <TabsContent value="purchases" className="space-y-4">
+          <FilterBar
+            hasActiveFilters={hasActiveFilters}
+            onResetFilters={resetFilters}
+          >
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
+            >
+              <option value="ALL">Todos os Status de Pagamento</option>
+              <option value="PAID">PAID (Pago)</option>
+              <option value="PENDING">PENDING (Pendente)</option>
+              <option value="CANCELLED">CANCELLED (Cancelado)</option>
+              <option value="REFUNDED">REFUNDED (Reembolsado)</option>
+              <option value="EXPIRED">EXPIRED (Expirado)</option>
+            </select>
+
+            <select
+              value={productIdFilter}
+              onChange={(e) => {
+                setProductIdFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
+            >
+              <option value="ALL">Todos os Produtos</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={userIdFilter}
+              onChange={(e) => {
+                setUserIdFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700 max-w-[200px]"
+            >
+              <option value="ALL">Todos os Clientes</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName || u.email}</option>
+              ))}
+            </select>
+          </FilterBar>
+
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
+                  <tr>
+                    <th className="px-4 py-3">ID Transação</th>
+                    <th className="px-4 py-3">Cliente / Comprador</th>
+                    <th className="px-4 py-3">Produto</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 font-mono">Valor Total</th>
+                    <th className="px-4 py-3">Data</th>
+                    <th className="px-4 py-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
+                        Carregando histórico de compras...
+                      </td>
+                    </tr>
+                  ) : purchases.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-0">
+                        <EmptyState
+                          icon={Receipt}
+                          title="Nenhuma compra registrada"
+                          description="Não foram encontradas transações com os filtros selecionados."
+                          action={hasActiveFilters ? { label: 'Limpar Filtros', onClick: resetFilters } : undefined}
+                        />
+                      </td>
+                    </tr>
+                  ) : (
+                    purchases.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 py-3 font-mono font-semibold text-slate-900">
+                          {p.id.substring(0, 8)}...
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900">{p.user?.fullName || 'Cliente 2GO'}</div>
+                          <div className="text-[11px] text-slate-500">{p.user?.email}</div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-800">
+                          {p.product?.name || 'Acesso Roteiro 2GO'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={p.status} />
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900 font-sans">
+                          {formatCurrency(p.finalAmount || p.amount)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 text-[11px]">
+                          {new Date(p.createdAt).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleViewDetails(purchase)}
-                            className="h-8 border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 gap-1.5 cursor-pointer"
+                            onClick={() => handleOpenDetails(p.id)}
+                            className="text-xs h-7 px-2.5 border-slate-200 text-[#001F5B] hover:bg-[#001F5B] hover:text-white transition-colors font-semibold flex items-center gap-1 ml-auto cursor-pointer"
                           >
-                            <FileText className="w-3.5 h-3.5" />
-                            Detalhar
+                            <Eye className="w-3.5 h-3.5" />
+                            Detalhes
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/40 text-xs text-slate-600">
+              <div>
+                Mostrando <b>{purchases.length}</b> de <b>{meta.total}</b> registros (Página {meta.page} de {meta.totalPages || 1})
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1 || isLoading}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  className="h-7 text-xs px-2.5 bg-white border-slate-200 text-slate-700"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= meta.totalPages || isLoading}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  className="h-7 text-xs px-2.5 bg-white border-slate-200 text-slate-700"
+                >
+                  Próxima
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 2: Products */}
+        <TabsContent value="products" className="space-y-4">
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {products.length === 0 ? (
+              <EmptyState icon={ShoppingBag} title="Nenhum produto no catálogo" description="Crie o primeiro produto para disponibilizar no checkout 2GO." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
+                    <tr>
+                      <th className="px-4 py-3">Nome do Produto</th>
+                      <th className="px-4 py-3">Tipo de Produto</th>
+                      <th className="px-4 py-3">Preço</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {products.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{p.name}</td>
+                        <td className="px-4 py-3 font-mono text-slate-600">{p.type}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{formatCurrency(p.price)}</td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={p.active ? 'ACTIVE' : 'INACTIVE'} />
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>
-        </>
-      )}
+        </TabsContent>
 
-      {/* TAB 2: COUPONS */}
-      {activeTab === 'coupons' && (
-        <Card className="shadow-xs border-slate-100">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <Tag className="w-4.5 h-4.5 text-[#001F5B]" />
-              <h3 className="font-bold text-slate-800">Gerenciamento de Cupons de Desconto</h3>
-            </div>
-            <Button
-              onClick={() => setIsCouponModalOpen(true)}
-              className="bg-[#001F5B] hover:bg-[#00143D] text-white font-semibold text-xs gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Cupom
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="font-semibold text-slate-700">Código</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Tipo de Desconto</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Valor</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Data de Criação</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {coupons.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono font-bold text-slate-800 text-sm">
-                      {c.code}
-                    </TableCell>
-                    <TableCell className="text-xs font-semibold text-slate-600">
-                      {c.discountType === 'PERCENTAGE' ? 'Porcentagem (%)' : 'Valor Fixo (R$)'}
-                    </TableCell>
-                    <TableCell className="font-bold text-slate-900 text-right">
-                      {c.discountType === 'PERCENTAGE' ? `${c.discountValue}%` : formatCurrency(Number(c.discountValue))}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                        c.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                      }`}>
-                        {c.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-500">
-                      {formatDate(c.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleCouponActive(c.id, c.active)}
-                        className="h-8 border-slate-200 text-xs font-semibold cursor-pointer"
-                      >
-                        {c.active ? 'Desativar' : 'Ativar'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      )}
-
-      {/* TAB 3: PRODUCTS */}
-      {activeTab === 'products' && (
-        <Card className="shadow-xs border-slate-100">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="w-4.5 h-4.5 text-[#001F5B]" />
-              <h3 className="font-bold text-slate-800">Catálogo de Produtos</h3>
-            </div>
-            <Button
-              onClick={() => setIsProductModalOpen(true)}
-              className="bg-[#001F5B] hover:bg-[#00143D] text-white font-semibold text-xs gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Produto
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="font-semibold text-slate-700">Nome do Produto</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Tipo</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Preço</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-semibold text-slate-800 text-sm">
-                      {p.name}
-                    </TableCell>
-                    <TableCell className="text-xs font-bold text-slate-500">
-                      {p.type}
-                    </TableCell>
-                    <TableCell className="font-bold text-slate-900 text-right">
-                      {formatCurrency(Number(p.price))}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                        p.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                      }`}>
-                        {p.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleProductActive(p.id, p.active)}
-                        className="h-8 border-slate-200 text-xs font-semibold cursor-pointer"
-                      >
-                        {p.active ? 'Desativar' : 'Ativar'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      )}
-
-      {/* CREATE COUPON MODAL */}
-      {isCouponModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <h3 className="text-lg font-bold text-slate-800">Criar Novo Cupom</h3>
-            <form onSubmit={handleCreateCoupon} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Código do Cupom</label>
-                <Input
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  placeholder="EX: PROMO10"
-                  required
-                />
+        {/* Tab 3: Coupons */}
+        <TabsContent value="coupons" className="space-y-4">
+          <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
+            {coupons.length === 0 ? (
+              <EmptyState icon={Tag} title="Nenhum cupom cadastrado" description="Crie cupons de desconto para ações de marketing e remarketing." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
+                    <tr>
+                      <th className="px-4 py-3">Código do Cupom</th>
+                      <th className="px-4 py-3">Tipo de Desconto</th>
+                      <th className="px-4 py-3">Valor do Desconto</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {coupons.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-mono font-bold text-[#001F5B]">{c.code}</td>
+                        <td className="px-4 py-3 font-medium text-slate-700">
+                          {c.discountType === 'PERCENTAGE' ? 'Porcentagem (%)' : 'Valor Fixo (R$)'}
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900">
+                          {c.discountType === 'PERCENTAGE' ? `${c.discountValue}%` : `R$ ${c.discountValue}`}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={c.active ? 'ACTIVE' : 'INACTIVE'} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Tipo de Desconto</label>
-                <select
-                  value={couponType}
-                  onChange={(e: any) => setCouponType(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm"
-                >
-                  <option value="PERCENTAGE">Porcentagem (%)</option>
-                  <option value="FIXED">Valor Fixo (R$)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Valor do Desconto</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={couponValue}
-                  onChange={(e) => setCouponValue(e.target.value)}
-                  placeholder={couponType === 'PERCENTAGE' ? '10 (para 10%)' : '15.00'}
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCouponModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-
-                <Button
-                  type="submit"
-                  disabled={isSavingCoupon}
-                  className="bg-[#001F5B] hover:bg-[#00143D] text-white"
-                >
-                  {isSavingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Cupom'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE PRODUCT MODAL */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <h3 className="text-lg font-bold text-slate-800">Criar Novo Produto</h3>
-            <form onSubmit={handleCreateProduct} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Nome do Produto</label>
-                <Input
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="EX: Roteiro Premium 2GO"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Tipo de Produto</label>
-                <select
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm"
-                >
-                  <option value="ITINERARY_FULL_ACCESS">ITINERARY_FULL_ACCESS</option>
-                  <option value="AI_CREDITS">AI_CREDITS</option>
-                  <option value="PREMIUM_TEMPLATE">PREMIUM_TEMPLATE</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Preço (R$)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={productPrice}
-                  onChange={(e) => setProductPrice(e.target.value)}
-                  placeholder="19.99"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsProductModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-
-                <Button
-                  type="submit"
-                  disabled={isSavingProduct}
-                  className="bg-[#001F5B] hover:bg-[#00143D] text-white"
-                >
-                  {isSavingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Produto'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Transaction Details Slide-Over Drawer */}
+      {/* Sheet: Purchase Details */}
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-md p-0 flex flex-col h-full shadow-2xl z-50">
+        <SheetContent side="right" className="w-full sm:max-w-md bg-white border-l border-slate-200 p-6 space-y-4 overflow-y-auto">
+          <SheetHeader className="border-b border-slate-100 pb-3">
+            <SheetTitle className="text-base font-bold text-slate-900">Detalhes da Transação</SheetTitle>
+            <SheetDescription className="text-xs text-slate-500">
+              Informações financeiras do checkout e vinculação com roteiro.
+            </SheetDescription>
+          </SheetHeader>
+
           {selectedPurchase ? (
-            <div className="flex flex-col h-full">
-              <SheetHeader className="p-6 border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-[#001F5B]/5 text-[#001F5B] rounded-lg">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <SheetTitle className="text-lg font-bold text-slate-800">Detalhes da Compra</SheetTitle>
-                    <SheetDescription className="text-xs text-slate-400 font-mono mt-0.5">
-                      ID: {selectedPurchase.id}
-                    </SheetDescription>
-                  </div>
+            <div className="space-y-4 pt-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">ID Compra</span>
+                  <span className="font-mono text-slate-900 font-semibold">{selectedPurchase.id}</span>
                 </div>
-              </SheetHeader>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                  selectedPurchase.status === 'PAID' 
-                    ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' 
-                    : selectedPurchase.status === 'CHARGEBACK'
-                    ? 'bg-purple-50/50 border-purple-100 text-purple-800'
-                    : 'bg-amber-50/50 border-amber-100 text-amber-800'
-                }`}>
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Status da Transação</span>
-                    <span className="text-base font-bold">{translateStatus(selectedPurchase.status)}</span>
-                  </div>
-                  <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadgeClass(selectedPurchase.status)}`}>
-                    {selectedPurchase.status}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">Status</span>
+                  <StatusBadge status={selectedPurchase.status} />
                 </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Valores e Snapshot de Preço</h4>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">Valor Original:</span>
-                      <span className="font-bold text-slate-800">
-                        {formatCurrency(Number(selectedPurchase.originalAmount || selectedPurchase.amount))}
-                      </span>
-                    </div>
-                    {selectedPurchase.coupon && (
-                      <div className="flex justify-between text-emerald-700">
-                        <span className="font-semibold flex items-center gap-1">
-                          <Tag className="w-3.5 h-3.5" /> Desconto (Cupom: {selectedPurchase.coupon.code}):
-                        </span>
-                        <span className="font-bold">
-                          -{formatCurrency(Number(selectedPurchase.discountAmount || 0))}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between pt-2 border-t border-slate-200 font-bold text-sm text-slate-900">
-                      <span>Valor Final Cobrado:</span>
-                      <span>{formatCurrency(Number(selectedPurchase.finalAmount || selectedPurchase.amount))}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Provedor e Método</h4>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">Provedor:</span>
-                      <span className="font-bold text-slate-800">{selectedPurchase.provider || 'MOCK'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">Método de Pagamento:</span>
-                      <span className="font-bold text-slate-800">{selectedPurchase.paymentMethod || 'PIX'}</span>
-                    </div>
-                    {selectedPurchase.providerPaymentId && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-semibold">ID no Provedor:</span>
-                        <span className="font-mono text-slate-700 select-all">{selectedPurchase.providerPaymentId}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Histórico de Datas</h4>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-2.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">Criado em:</span>
-                      <span className="font-semibold text-slate-600">{formatDate(selectedPurchase.createdAt)}</span>
-                    </div>
-                    {selectedPurchase.paidAt && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-semibold">Pago em:</span>
-                        <span className="font-semibold text-slate-600">{formatDate(selectedPurchase.paidAt)}</span>
-                      </div>
-                    )}
-                    {selectedPurchase.refundedAt && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-semibold">Reembolsado em:</span>
-                        <span className="font-semibold text-slate-600">{formatDate(selectedPurchase.refundedAt)}</span>
-                      </div>
-                    )}
-                    {selectedPurchase.chargebackAt && (
-                      <div className="flex justify-between text-purple-700 font-semibold">
-                        <span>Contestação (Chargeback) em:</span>
-                        <span>{formatDate(selectedPurchase.chargebackAt)}</span>
-                      </div>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">Valor Pago</span>
+                  <span className="font-bold text-slate-900 text-sm">{formatCurrency(selectedPurchase.finalAmount || selectedPurchase.amount)}</span>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50/50">
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsDetailsOpen(false)}
-                  className="w-full h-10 border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
-                >
-                  Fechar Painel
-                </Button>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-2">
+                <span className="text-[10px] font-bold uppercase text-slate-400 font-mono block">Cliente / Comprador</span>
+                <p className="font-semibold text-slate-900">{selectedPurchase.user?.fullName || 'Não informado'}</p>
+                <p className="text-slate-500">{selectedPurchase.user?.email}</p>
               </div>
+
+              {selectedPurchase.tripId && (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-2">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 font-mono block">Roteiro Vinculado</span>
+                  <p className="font-semibold text-slate-900">{associatedTrip?.destination || selectedPurchase.tripId}</p>
+                  {associatedTrip && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-500">Status Full Access:</span>
+                      <StatusBadge status={associatedTrip.premiumUnlockedAt ? 'PREMIUM' : 'FREE'} />
+                    </div>
+                  )}
+                  {associatedTrip && !associatedTrip.premiumUnlockedAt && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleUnlockTrip(associatedTrip.id)}
+                      disabled={isActionLoading}
+                      className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 font-semibold"
+                    >
+                      Desbloquear Full Access Manualmente
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="p-20 text-center flex flex-col items-center justify-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[#001F5B]" />
-              <p className="text-sm font-semibold text-slate-500">Buscando dados da transação...</p>
+            <div className="py-12 text-center text-slate-400 text-xs">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
+              Carregando detalhes...
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Modal: Create Coupon */}
+      <Sheet open={isCouponModalOpen} onOpenChange={setIsCouponModalOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md bg-white border-l border-slate-200 p-6 space-y-4">
+          <SheetHeader className="border-b border-slate-100 pb-3">
+            <SheetTitle className="text-base font-bold text-slate-900">Criar Cupom de Desconto</SheetTitle>
+            <SheetDescription className="text-xs text-slate-500">
+              Cadastre um código promocional para o checkout 2GO.
+            </SheetDescription>
+          </SheetHeader>
+
+          <form onSubmit={handleCreateCouponSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Código do Cupom *</label>
+              <Input
+                type="text"
+                placeholder="Ex: PROMO2GO10"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50 uppercase font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Tipo de Desconto *</label>
+              <select
+                value={couponType}
+                onChange={(e) => setCouponType(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-800"
+              >
+                <option value="PERCENTAGE">Porcentagem (%)</option>
+                <option value="FIXED">Valor Fixo (R$)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Valor do Desconto *</label>
+              <Input
+                type="number"
+                placeholder="Ex: 15 (para 15% ou R$ 15,00)"
+                value={couponValue}
+                onChange={(e) => setCouponValue(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setIsCouponModalOpen(false)} className="text-xs h-9">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSavingCoupon} className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-9 px-4 font-semibold cursor-pointer">
+                {isSavingCoupon ? 'Salvando...' : 'Criar Cupom'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Modal: Create Product */}
+      <Sheet open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md bg-white border-l border-slate-200 p-6 space-y-4">
+          <SheetHeader className="border-b border-slate-100 pb-3">
+            <SheetTitle className="text-base font-bold text-slate-900">Criar Produto no Catálogo</SheetTitle>
+            <SheetDescription className="text-xs text-slate-500">
+              Cadastre uma nova oferta comercial para checkout.
+            </SheetDescription>
+          </SheetHeader>
+
+          <form onSubmit={handleCreateProductSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Nome do Produto *</label>
+              <Input
+                type="text"
+                placeholder="Ex: Roteiro Premium Full Access"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Tipo *</label>
+              <Input
+                type="text"
+                value={productType}
+                onChange={(e) => setProductType(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50 font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Preço em R$ *</label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Ex: 29.90"
+                value={productPrice}
+                onChange={(e) => setProductPrice(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setIsProductModalOpen(false)} className="text-xs h-9">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSavingProduct} className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-9 px-4 font-semibold cursor-pointer">
+                {isSavingProduct ? 'Salvando...' : 'Criar Produto'}
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

@@ -11,14 +11,21 @@ import {
   CheckCircle2, 
   RefreshCw, 
   ExternalLink,
-  Search,
   Globe,
   Tag,
   Wand2,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/admin/page-header';
+import { FilterBar } from '@/components/admin/filter-bar';
+import { StatusBadge } from '@/components/admin/status-badge';
+import { EmptyState } from '@/components/admin/empty-state';
 import { 
   listBlogPosts, 
   createBlogPost, 
@@ -119,36 +126,30 @@ export default function BlogAdminPage() {
     setCoverImage(p.coverImage || '');
     setSeoTitle(p.seoTitle || '');
     setSeoDescription(p.seoDescription || '');
-    setStatus(p.status);
+    setStatus(p.status as any);
     setIsEditorOpen(true);
   };
 
   const handleSavePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
-      alert('Informe o título e o conteúdo do post.');
+      alert('Preencha pelo menos Título e Conteúdo do artigo.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const tags = tagsInput
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-      const relatedDestinations = destinationsInput
-        .split(',')
-        .map((d) => d.trim())
-        .filter(Boolean);
+      const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
+      const destinations = destinationsInput.split(',').map((d) => d.trim()).filter(Boolean);
 
-      const payload: Partial<BlogPost> = {
+      const payload = {
         title: title.trim(),
         slug: slug.trim() || undefined,
         summary: summary.trim() || undefined,
-        content,
+        content: content.trim(),
         category,
         tags,
-        relatedDestinations,
+        relatedDestinations: destinations,
         authorName: authorName.trim() || 'Equipe 2GO',
         coverImage: coverImage.trim() || undefined,
         seoTitle: seoTitle.trim() || undefined,
@@ -165,19 +166,21 @@ export default function BlogAdminPage() {
       setIsEditorOpen(false);
       await fetchPosts(meta.page);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao salvar artigo de blog.');
+      console.error('Failed to save post', err);
+      alert(err.response?.data?.message || 'Erro ao salvar artigo.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handlePublish = async (id: string) => {
-    if (!confirm('Deseja publicar este artigo? Ele ficará visível publicamente no Blog do 2GO.')) return;
+    if (!confirm('Deseja publicar este artigo no Blog 2GO?')) return;
     try {
       await publishBlogPost(id);
       await fetchPosts(meta.page);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao publicar artigo.');
+    } catch (err) {
+      console.error('Failed to publish post', err);
+      alert('Erro ao publicar artigo.');
     }
   };
 
@@ -186,28 +189,34 @@ export default function BlogAdminPage() {
     try {
       await deleteBlogPost(id);
       await fetchPosts(meta.page);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao excluir artigo.');
+    } catch (err) {
+      console.error('Failed to delete post', err);
+      alert('Erro ao excluir artigo.');
     }
   };
 
-  // AI Assistant Trigger
-  const handleRunAiAssist = async () => {
+  const handleGenerateAi = async () => {
+    if (!aiTopic.trim()) {
+      alert('Por favor, informe o tema principal para a IA.');
+      return;
+    }
     setIsAiGenerating(true);
     setAiOutput('');
     try {
       const res = await requestEditorialAssist({
         action: aiAction,
-        topic: aiTopic || title || 'Dicas de Viagem',
-        destination: aiDestination || undefined,
-        targetAudience: aiAudience,
-        existingContent: content || summary || undefined,
-        context: aiContext,
+        topic: aiTopic.trim(),
+        destination: aiDestination.trim() || undefined,
+        targetAudience: aiAudience.trim() || undefined,
+        context: aiContext.trim() || undefined,
       });
 
-      setAiOutput(res.output);
+      setAiOutput(res.output || (res as any).suggestion || '');
+      if ((res as any).suggestedSeoTitle && !seoTitle) setSeoTitle((res as any).suggestedSeoTitle);
+      if ((res as any).suggestedSeoDescription && !seoDescription) setSeoDescription((res as any).suggestedSeoDescription);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao executar assistente de IA.');
+      console.error('AI generation failed', err);
+      alert('Erro ao consultar a IA Editorial.');
     } finally {
       setIsAiGenerating(false);
     }
@@ -215,126 +224,107 @@ export default function BlogAdminPage() {
 
   const handleApplyAiOutput = () => {
     if (!aiOutput) return;
-
     if (aiAction === 'GENERATE_DRAFT') {
-      setContent(aiOutput);
-      setStatus('DRAFT');
-    } else if (aiAction === 'SUGGEST_TITLES') {
-      const firstLine = aiOutput.split('\n')[0]?.replace(/^\d+\.\s*/, '') || aiOutput;
-      setTitle(firstLine);
+      setContent((prev) => prev ? `${prev}\n\n${aiOutput}` : aiOutput);
     } else if (aiAction === 'SUMMARIZE') {
       setSummary(aiOutput);
     } else if (aiAction === 'SEO_META') {
       setSeoDescription(aiOutput);
-    } else if (aiAction === 'IMPROVE_TEXT') {
-      setContent(aiOutput);
+    } else {
+      setContent((prev) => prev ? `${prev}\n\n${aiOutput}` : aiOutput);
     }
-
     setIsAiModalOpen(false);
   };
 
-  const getStatusBadge = (st: string) => {
-    switch (st) {
-      case 'PUBLISHED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Publicado</span>;
-      case 'DRAFT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">Rascunho</span>;
-      case 'REVIEW':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Em Revisão</span>;
-      case 'SCHEDULED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Agendado</span>;
-      case 'ARCHIVED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600">Arquivado</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-800">{st}</span>;
-    }
+  const hasActiveFilters = Boolean(search.trim() || statusFilter || categoryFilter);
+
+  const resetFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setCategoryFilter('');
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
+      {/* Page Header */}
+      <PageHeader
+        category="CONTEÚDO & CMS"
+        title="Gestão do Blog & Editorial"
+        subtitle="Gerencie artigos, tutoriais de viagem, SEO e utilize a Inteligência Editorial 2GO"
+        breadcrumbs={[
+          { label: 'Conteúdo', href: '/blog' },
+          { label: 'Blog & CMS' }
+        ]}
+        actions={
           <div className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-[#001F5B]" />
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Blog & CMS de Conteúdo</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchPosts(meta.page)}
+              disabled={isLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+              Atualizar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Novo Artigo
+            </Button>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Gestão editorial com suporte de IA para redação de rascunhos, SEO e publicação no site público 2GO.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            className="bg-[#001F5B] hover:bg-[#001744] text-white text-xs flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Artigo
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por título ou resumo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg"
-          />
-        </div>
-
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Buscar por título ou resumo..."
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={resetFilters}
+      >
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700"
+          className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
         >
           <option value="">Todos os Status</option>
-          <option value="DRAFT">Rascunhos</option>
+          <option value="DRAFT">Rascunho (Draft)</option>
           <option value="REVIEW">Em Revisão</option>
-          <option value="PUBLISHED">Publicados</option>
-          <option value="ARCHIVED">Arquivados</option>
+          <option value="SCHEDULED">Agendado</option>
+          <option value="PUBLISHED">Publicado</option>
+          <option value="ARCHIVED">Arquivado</option>
         </select>
 
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700"
+          className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
         >
           <option value="">Todas as Categorias</option>
           <option value="Dicas de Viagem">Dicas de Viagem</option>
           <option value="Roteiros Exclusivos">Roteiros Exclusivos</option>
           <option value="Gastronomia">Gastronomia</option>
-          <option value="Cultura & História">Cultura & História</option>
+          <option value="Cultura e Arte">Cultura e Arte</option>
+          <option value="Guias de Destino">Guias de Destino</option>
         </select>
+      </FilterBar>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => fetchPosts(1)}
-          disabled={isLoading}
-          className="h-8 text-xs text-slate-500"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      {/* Posts Table */}
-      <Card className="bg-white border-slate-200 shadow-xs overflow-hidden">
+      {/* Blog Posts Table */}
+      <Card className="bg-white border border-slate-200/90 shadow-2xs overflow-hidden rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
+            <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider font-mono">
               <tr>
-                <th className="px-4 py-3">Artigo / Slug</th>
+                <th className="px-4 py-3">Título do Artigo</th>
                 <th className="px-4 py-3">Categoria</th>
-                <th className="px-4 py-3">Autor</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Publicado em</th>
+                <th className="px-4 py-3">Autor</th>
+                <th className="px-4 py-3">Publicação</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
@@ -343,50 +333,61 @@ export default function BlogAdminPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
-                    Carregando artigos do Core...
+                    Carregando artigos do Blog 2GO...
                   </td>
                 </tr>
               ) : posts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
-                    Nenhum artigo encontrado. Crie um novo artigo com apoio da IA.
+                  <td colSpan={6} className="p-0">
+                    <EmptyState
+                      icon={FileText}
+                      title="Nenhum artigo encontrado"
+                      description="Crie o primeiro artigo para o blog ou ajuste os filtros."
+                      action={{ label: 'Novo Artigo', onClick: handleOpenCreate }}
+                    />
                   </td>
                 </tr>
               ) : (
                 posts.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
+                  <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Title */}
                     <td className="px-4 py-3">
-                      <div className="font-bold text-slate-900">{p.title}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">/{p.slug}</div>
+                      <div className="font-semibold text-slate-900">{p.title}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">/{p.slug}</div>
                     </td>
 
+                    {/* Category */}
                     <td className="px-4 py-3">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
                         {p.category}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-slate-600 font-medium">
-                      {p.authorName}
-                    </td>
-
+                    {/* Status */}
                     <td className="px-4 py-3">
-                      {getStatusBadge(p.status)}
+                      <StatusBadge status={p.status} />
                     </td>
 
+                    {/* Author */}
+                    <td className="px-4 py-3 font-medium text-slate-700">{p.authorName}</td>
+
+                    {/* Published Date */}
                     <td className="px-4 py-3 text-slate-500 text-[11px]">
-                      {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('pt-BR') : '-'}
+                      {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('pt-BR') : 'Não publicado'}
                     </td>
 
+                    {/* Actions */}
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {p.status !== 'PUBLISHED' && (
                           <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handlePublish(p.id)}
-                            className="h-7 text-[11px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="text-xs h-7 px-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            title="Publicar Artigo"
                           >
-                            <Globe className="w-3 h-3 mr-1" />
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                             Publicar
                           </Button>
                         )}
@@ -394,17 +395,19 @@ export default function BlogAdminPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenEdit(p)}
-                          className="h-7 text-[11px] px-2"
+                          className="text-xs h-7 px-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          title="Editar Artigo"
                         >
-                          <Edit className="w-3 h-3" />
+                          <Edit className="w-3.5 h-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(p.id)}
-                          className="h-7 text-[11px] px-2 text-red-600 hover:bg-red-50"
+                          className="text-xs h-7 px-2 text-rose-600 hover:bg-rose-50"
+                          title="Excluir Artigo"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -414,273 +417,277 @@ export default function BlogAdminPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/40 text-xs text-slate-600">
+          <div>
+            Mostrando <b>{posts.length}</b> de <b>{meta.total}</b> registros (Página {meta.page} de {meta.totalPages || 1})
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={meta.page <= 1 || isLoading}
+              onClick={() => fetchPosts(meta.page - 1)}
+              className="h-7 text-xs px-2.5 bg-white border-slate-200 text-slate-700"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={meta.page >= meta.totalPages || isLoading}
+              onClick={() => fetchPosts(meta.page + 1)}
+              className="h-7 text-xs px-2.5 bg-white border-slate-200 text-slate-700"
+            >
+              Próxima
+              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
       </Card>
 
-      {/* ARTICLE EDITOR MODAL */}
+      {/* Editor Drawer */}
       {isEditorOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[94vh] overflow-y-auto p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900">
-                {editingId ? 'Editar Artigo de Blog' : 'Novo Artigo de Blog'}
-              </h2>
-
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setAiTopic(title);
-                  setIsAiModalOpen(true);
-                }}
-                className="bg-purple-600 hover:bg-purple-700 text-white text-xs flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Assistente Editorial IA
-              </Button>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-end z-50">
+          <div className="bg-white w-full max-w-2xl h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {editingId ? 'Editar Artigo' : 'Novo Artigo no Blog 2GO'}
+                </h2>
+                <p className="text-xs text-slate-500">Editor de conteúdo e dados SEO do artigo.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAiModalOpen(true)}
+                  className="text-xs h-8 border-purple-200 text-purple-700 hover:bg-purple-50 font-semibold flex items-center gap-1.5"
+                >
+                  <Wand2 className="w-3.5 h-3.5 text-purple-600" />
+                  Assistente IA
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setIsEditorOpen(false)} className="text-xs h-8">
+                  Fechar
+                </Button>
+              </div>
             </div>
 
-            <form onSubmit={handleSavePost} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="font-semibold text-slate-700 block mb-1">Título do Artigo</label>
-                  <input
+            <form onSubmit={handleSavePost} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Título do Artigo *</label>
+                <Input
+                  type="text"
+                  placeholder="Ex: O Guia Definitivo de 7 Dias em Paris"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  className="text-xs h-9 bg-slate-50"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Slug da URL</label>
+                  <Input
                     type="text"
-                    required
-                    placeholder="Ex: 5 Experiências Gastronômicas Inesquecíveis em Roma"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    placeholder="guia-definitivo-paris"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    className="text-xs h-9 bg-slate-50 font-mono"
                   />
                 </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Categoria</label>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Categoria *</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-800"
                   >
                     <option value="Dicas de Viagem">Dicas de Viagem</option>
                     <option value="Roteiros Exclusivos">Roteiros Exclusivos</option>
                     <option value="Gastronomia">Gastronomia</option>
-                    <option value="Cultura & História">Cultura & História</option>
+                    <option value="Cultura e Arte">Cultura e Arte</option>
+                    <option value="Guias de Destino">Guias de Destino</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Slug (URL amigável)</label>
-                  <input
-                    type="text"
-                    placeholder="ex: experiencias-gastronomicas-roma (opcional)"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Nome do Autor</label>
-                  <input
-                    type="text"
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Resumo Executivo / Sinopse</label>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Resumo / Subtítulo</label>
                 <textarea
                   rows={2}
+                  placeholder="Breve introdução que aparece na listagem..."
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  placeholder="Breve introdução que aparecerá nos cards do blog..."
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-slate-700">Conteúdo Completo (Markdown)</label>
-                  <span className="text-[10px] text-slate-400">Suporta formatação Markdown (H2, H3, listas, links)</span>
-                </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Conteúdo Completo (Markdown / HTML) *</label>
                 <textarea
-                  rows={14}
-                  required
+                  rows={12}
+                  placeholder="Escreva o artigo completo..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono leading-relaxed"
-                  placeholder="## Introdução&#10;&#10;Escreva o conteúdo completo do artigo aqui..."
+                  required
+                  className="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
                 />
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-800 block text-xs">Otimização SEO & Metadados</span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-slate-600 block mb-1 text-[11px]">SEO Title (Google)</label>
-                    <input
-                      type="text"
-                      value={seoTitle}
-                      onChange={(e) => setSeoTitle(e.target.value)}
-                      placeholder="Título otimizado para buscadores"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-slate-600 block mb-1 text-[11px]">SEO Description (Meta Tag)</label>
-                    <input
-                      type="text"
-                      value={seoDescription}
-                      onChange={(e) => setSeoDescription(e.target.value)}
-                      placeholder="Descrição sucinta para snippets do Google"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs"
-                    />
-                  </div>
+              {/* SEO Meta */}
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-3">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] font-mono block">Otimização SEO</span>
+                <div className="space-y-1">
+                  <label className="font-medium text-slate-600">Título SEO (Meta Title)</label>
+                  <Input
+                    type="text"
+                    placeholder="Título otimizado para buscadores (Google)"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    className="text-xs h-8 bg-white"
+                  />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-slate-600 block mb-1 text-[11px]">Tags (separadas por vírgula)</label>
-                    <input
-                      type="text"
-                      value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-600 block mb-1 text-[11px]">Destinos Relacionados (separados por vírgula)</label>
-                    <input
-                      type="text"
-                      value={destinationsInput}
-                      onChange={(e) => setDestinationsInput(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-slate-600">Descrição SEO (Meta Description)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Resumo otimizado para o Google (máx 160 caracteres)..."
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    className="w-full p-2 text-xs bg-white border border-slate-200 rounded-md"
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-700 text-xs">Status:</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Status do Artigo</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
-                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   >
-                    <option value="DRAFT">DRAFT (Rascunho)</option>
-                    <option value="REVIEW">REVIEW (Em Revisão)</option>
-                    <option value="PUBLISHED">PUBLISHED (Publicado)</option>
-                    <option value="ARCHIVED">ARCHIVED (Arquivado)</option>
+                    <option value="DRAFT">Rascunho</option>
+                    <option value="REVIEW">Em Revisão</option>
+                    <option value="SCHEDULED">Agendado</option>
+                    <option value="PUBLISHED">Publicado</option>
+                    <option value="ARCHIVED">Arquivado</option>
                   </select>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditorOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isSaving}
-                    className="bg-[#001F5B] hover:bg-[#001744] text-white"
-                  >
-                    {isSaving ? 'Salvando...' : 'Salvar Artigo'}
-                  </Button>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Autor</label>
+                  <Input
+                    type="text"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    className="text-xs h-9 bg-slate-50"
+                  />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <Button type="button" variant="outline" onClick={() => setIsEditorOpen(false)} className="text-xs h-9">
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSaving} className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-9 px-5 font-semibold cursor-pointer">
+                  {isSaving ? 'Salvando...' : 'Salvar Artigo'}
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* AI EDITORIAL ASSISTANT MODAL */}
+      {/* AI Assistant Modal */}
       {isAiModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Wand2 className="w-4 h-4 text-purple-600" />
-                Assistente de Conteúdo com IA
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                Assistente IA Editorial 2GO
               </h3>
-              <button
-                onClick={() => setIsAiModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
+              <Button variant="ghost" size="sm" onClick={() => setIsAiModalOpen(false)} className="h-7 text-xs">
+                Fechar
+              </Button>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Ação Desejada</label>
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Tipo de Assistência IA</label>
                 <select
                   value={aiAction}
                   onChange={(e) => setAiAction(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 >
                   <option value="GENERATE_DRAFT">Gerar Rascunho Completo de Artigo</option>
-                  <option value="SUGGEST_TITLES">Sugerir 5 Títulos Magnéticos & SEO</option>
-                  <option value="SEO_META">Gerar Meta Descrição & SEO Title</option>
-                  <option value="SUMMARIZE">Resumir Conteúdo em Sinopse</option>
-                  <option value="IMPROVE_TEXT">Aprimorar Elegância & Fluidez Editorial</option>
+                  <option value="SUGGEST_TITLES">Sugerir Títulos Atrativos</option>
+                  <option value="SEO_META">Gerar Título & Descrição SEO</option>
+                  <option value="SUMMARIZE">Resumir Artigo Existente</option>
+                  <option value="IMPROVE_TEXT">Melhorar Tom de Voz & Estilo</option>
                 </select>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Tema / Tópico</label>
-                <input
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Tema do Artigo / Tópico *</label>
+                <Input
                   type="text"
+                  placeholder="Ex: Principais passeios em Fernando de Noronha"
                   value={aiTopic}
                   onChange={(e) => setAiTopic(e.target.value)}
-                  placeholder="Ex: O Melhor da Gastronomia em Roma"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="text-xs h-9 bg-slate-50"
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Destino (Opcional)</label>
-                <input
-                  type="text"
-                  value={aiDestination}
-                  onChange={(e) => setAiDestination(e.target.value)}
-                  placeholder="Ex: Roma, Itália"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-medium text-slate-600">Destino Relacionado</label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: Fernando de Noronha"
+                    value={aiDestination}
+                    onChange={(e) => setAiDestination(e.target.value)}
+                    className="text-xs h-8 bg-slate-50"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-slate-600">Público-Alvo</label>
+                  <Input
+                    type="text"
+                    value={aiAudience}
+                    onChange={(e) => setAiAudience(e.target.value)}
+                    className="text-xs h-8 bg-slate-50"
+                  />
+                </div>
               </div>
 
               <Button
                 type="button"
-                onClick={handleRunAiAssist}
+                onClick={handleGenerateAi}
                 disabled={isAiGenerating}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                className="w-full bg-purple-700 hover:bg-purple-800 text-white text-xs h-9 font-semibold flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isAiGenerating ? 'Gerando com IA...' : 'Processar com IA'}
+                <Sparkles className={`w-3.5 h-3.5 ${isAiGenerating ? 'animate-spin' : ''}`} />
+                {isAiGenerating ? 'Gerando Conteúdo com IA...' : 'Executar Inteligência Editorial'}
               </Button>
 
               {aiOutput && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <label className="font-bold text-slate-800 block">Resultado Gerado (Requer Revisão Humana):</label>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans text-slate-700 text-[11px]">
+                  <label className="font-bold text-slate-800">Resultado Gerado:</label>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg max-h-48 overflow-y-auto text-xs whitespace-pre-wrap font-sans text-slate-700">
                     {aiOutput}
                   </div>
                   <Button
                     type="button"
                     onClick={handleApplyAiOutput}
-                    className="w-full bg-[#001F5B] hover:bg-[#001744] text-white"
+                    className="w-full bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-8 font-semibold cursor-pointer"
                   >
-                    Inserir no Formulário do Artigo (DRAFT)
+                    Aplicar no Editor do Artigo
                   </Button>
                 </div>
               )}

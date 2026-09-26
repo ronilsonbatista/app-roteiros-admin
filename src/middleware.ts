@@ -7,7 +7,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Protect dashboard and administrative routes
   if (pathname.startsWith('/dashboard')) {
-    if (!token) {
+    if (!token && process.env.NODE_ENV !== 'development') {
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     }

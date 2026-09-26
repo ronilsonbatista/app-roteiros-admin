@@ -8,19 +8,23 @@ import {
   FlaskConical, 
   Plus, 
   Trash2, 
-  Edit, 
-  ShieldCheck, 
   RefreshCw, 
-  MapPin, 
   Tag, 
   Clock,
   Layers,
   FileText,
-  AlertCircle
+  ShieldCheck,
+  Cpu,
+  ArrowRight,
+  Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/admin/page-header';
+import { StatusBadge } from '@/components/admin/status-badge';
+import { EmptyState } from '@/components/admin/empty-state';
 import { 
   listGuidelines, 
   createGuideline, 
@@ -154,351 +158,316 @@ export default function IntelligenceHubPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
+      {/* Page Header */}
+      <PageHeader
+        category="INTELIGÊNCIA ARTIFICIAL"
+        title="Central de IA, Diretrizes & Conhecimento"
+        subtitle="Aqui gerenciamo-nos as diretrizes de tom de voz, regras de síntese e a base de conhecimento utilizada pelo modelo OpenAI 2GO"
+        breadcrumbs={[
+          { label: 'Inteligência', href: '/intelligence' },
+          { label: 'Central de IA' }
+        ]}
+        actions={
           <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-purple-600" />
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Central de Inteligência Artificial</h1>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Governança de diretrizes, tom de voz, base de conhecimento e simulação segura da IA do 2GO.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link href="/intelligence/playground">
-            <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white text-xs flex items-center gap-1.5">
-              <FlaskConical className="w-3.5 h-3.5" />
-              Playground & Simulação
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              disabled={isLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+              Atualizar
             </Button>
-          </Link>
-          <Link href="/ai">
-            <Button variant="outline" size="sm" className="text-xs flex items-center gap-1.5">
-              Telemetria & Tokens
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Safety Notice */}
-      <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-purple-900 flex items-center gap-3">
-        <ShieldCheck className="w-5 h-5 text-purple-700 shrink-0" />
-        <div>
-          <b>Governança de Instruções do Produto:</b> A equipe operacional controla diretrizes editoriais e conhecimento sobre destinos sem riscos de quebrar o System Prompt de produção.
-        </div>
-      </div>
-
-      {/* Tabs: Diretrizes vs Base de Conhecimento */}
-      <Tabs defaultValue="guidelines" className="space-y-4">
-        <TabsList className="bg-slate-100 p-1 border border-slate-200">
-          <TabsTrigger value="guidelines" className="text-xs">
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-            Diretrizes de Tom & Regras ({guidelines.length})
-          </TabsTrigger>
-          <TabsTrigger value="knowledge" className="text-xs">
-            <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-            Base de Conhecimento ({articles.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* 1. GUIDELINES TAB */}
-        <TabsContent value="guidelines">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500 font-medium">
-                Regras de estilo, tom de voz e palavras restritas injetadas na síntese dos roteiros.
-              </span>
-              <Button
-                size="sm"
-                onClick={() => setIsGuidelineModalOpen(true)}
-                className="bg-[#001F5B] hover:bg-[#001744] text-white text-xs flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Nova Diretriz
+            <Link href="/intelligence/playground">
+              <Button size="sm" className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer">
+                <FlaskConical className="w-3.5 h-3.5 mr-1.5" />
+                Playground & Simulação
               </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {isLoading ? (
-                <div className="col-span-full py-12 text-center text-slate-400 text-xs">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-600" />
-                  Carregando diretrizes...
-                </div>
-              ) : guidelines.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-slate-400 text-xs">
-                  Nenhuma diretriz cadastrada ainda.
-                </div>
-              ) : (
-                guidelines.map((g) => (
-                  <Card key={g.id} className="p-4 bg-white border-slate-200 shadow-xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800">
-                          {g.category}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">v{g.version}</span>
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-sm mt-2">{g.name}</h3>
-                      <p className="text-xs text-slate-600 mt-2 whitespace-pre-wrap font-sans bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        {g.content}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-[11px] text-slate-400">
-                      <span>{new Date(g.updatedAt).toLocaleDateString('pt-BR')}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteGuideline(g.id)}
-                        className="text-xs h-7 px-2 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
+            </Link>
           </div>
+        }
+      />
+
+      {/* Tabs */}
+      <Tabs defaultValue="guidelines" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <TabsList className="bg-white p-1 border border-slate-200/90 rounded-xl shadow-2xs">
+            <TabsTrigger value="guidelines" className="text-xs font-semibold px-4 py-1.5">
+              Diretrizes de IA ({guidelines.length})
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="text-xs font-semibold px-4 py-1.5">
+              Base de Conhecimento ({articles.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsGuidelineModalOpen(true)}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Nova Diretriz
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsArticleModalOpen(true)}
+              className="bg-white border-slate-200 text-slate-700 text-xs font-semibold h-9 shadow-2xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
+              Novo Artigo de Conhecimento
+            </Button>
+          </div>
+        </div>
+
+        {/* Guidelines Tab */}
+        <TabsContent value="guidelines" className="space-y-4">
+          {isLoading ? (
+            <Card className="p-12 text-center text-slate-400 text-xs bg-white border border-slate-200/90">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
+              Carregando diretrizes de IA...
+            </Card>
+          ) : guidelines.length === 0 ? (
+            <EmptyState
+              icon={Sparkles}
+              title="Nenhuma diretriz cadastrada"
+              description="Cadastre regras de estilo, restrições e tom de voz para o modelo 2GO."
+              action={{ label: 'Nova Diretriz', onClick: () => setIsGuidelineModalOpen(true) }}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {guidelines.map((g) => (
+                <Card key={g.id} className="p-5 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-3 flex flex-col justify-between hover:shadow-xs transition-all">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                        {g.category}
+                      </span>
+                      <StatusBadge status={g.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900">{g.name}</h3>
+                    <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200/60 font-mono text-[11px]">
+                      {g.content}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                    <span>Atualizado em {new Date(g.updatedAt).toLocaleDateString('pt-BR')}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteGuideline(g.id)}
+                      className="text-xs h-7 text-rose-600 hover:bg-rose-50 px-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      Excluir
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        {/* 2. KNOWLEDGE BASE TAB */}
-        <TabsContent value="knowledge">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500 font-medium">
-                Artigos e fatos específicos sobre destinos, FAQs e logística utilizados para enriquecer o contexto dos roteiros.
-              </span>
-              <Button
-                size="sm"
-                onClick={() => setIsArticleModalOpen(true)}
-                className="bg-[#001F5B] hover:bg-[#001744] text-white text-xs flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Novo Artigo de Conhecimento
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {isLoading ? (
-                <div className="col-span-full py-12 text-center text-slate-400 text-xs">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-600" />
-                  Carregando base de conhecimento...
-                </div>
-              ) : articles.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-slate-400 text-xs">
-                  Nenhum artigo de conhecimento cadastrado.
-                </div>
-              ) : (
-                articles.map((art) => (
-                  <Card key={art.id} className="p-4 bg-white border-slate-200 shadow-xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
-                          {art.category}
-                        </span>
-                        {art.destination && (
-                          <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                            <MapPin className="w-3 h-3" />
-                            {art.destination}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="font-bold text-slate-900 text-sm mt-2">{art.title}</h3>
-                      <p className="text-xs text-slate-600 mt-2 line-clamp-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        {art.content}
-                      </p>
-
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {art.tags?.map((t) => (
-                          <span key={t} className="text-[10px] font-mono bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">
+        {/* Knowledge Articles Tab */}
+        <TabsContent value="knowledge" className="space-y-4">
+          {isLoading ? (
+            <Card className="p-12 text-center text-slate-400 text-xs bg-white border border-slate-200/90">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#001F5B]" />
+              Carregando base de conhecimento...
+            </Card>
+          ) : articles.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Nenhum artigo de conhecimento"
+              description="Cadastre informações locais de destinos para alimentar o contexto do modelo."
+              action={{ label: 'Novo Artigo de Conhecimento', onClick: () => setIsArticleModalOpen(true) }}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {articles.map((a) => (
+                <Card key={a.id} className="p-5 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-3 flex flex-col justify-between hover:shadow-xs transition-all">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-mono">
+                        {a.category} {a.destination ? `• ${a.destination}` : ''}
+                      </span>
+                      <StatusBadge status={(a as any).isActive ?? (a as any).active ?? true ? 'ACTIVE' : 'INACTIVE'} />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900">{a.title}</h3>
+                    <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
+                      {a.content}
+                    </p>
+                    {a.tags && a.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {a.tags.map((t, idx) => (
+                          <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
                             #{t}
                           </span>
                         ))}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-[11px] text-slate-400">
-                      <span>Atualizado em {new Date(art.updatedAt).toLocaleDateString('pt-BR')}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteArticle(art.id)}
-                        className="text-xs h-7 px-2 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))
-              )}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                    <span>Criado em {new Date(a.createdAt).toLocaleDateString('pt-BR')}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteArticle(a.id)}
+                      className="text-xs h-7 text-rose-600 hover:bg-rose-50 px-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      Excluir
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* GUIDELINE MODAL */}
+      {/* Modal: Guideline */}
       {isGuidelineModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100">
-              Nova Diretriz para IA
-            </h2>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleSaveGuideline} className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fade-in text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Cadastrar Diretriz de IA</h3>
+              <p className="text-xs text-slate-500">Defina regras de tom de voz ou estilo de roteiro.</p>
+            </div>
 
-            <form onSubmit={handleSaveGuideline} className="space-y-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Nome da Diretriz</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Tom Sofisticado e Prático"
-                  value={guidelineName}
-                  onChange={(e) => setGuidelineName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Nome da Diretriz *</label>
+              <Input
+                type="text"
+                placeholder="Ex: Regra de Imersão Cultural Gastronômica"
+                value={guidelineName}
+                onChange={(e) => setGuidelineName(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50"
+              />
+            </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Categoria</label>
-                <select
-                  value={guidelineCategory}
-                  onChange={(e) => setGuidelineCategory(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
-                >
-                  <option value="TONE_OF_VOICE">Tom de Voz & Estilo</option>
-                  <option value="EDITORIAL_RULE">Regra Editorial de Conteúdo</option>
-                  <option value="RESTRICTED_WORDS">Palavras e Expressões a Evitar</option>
-                  <option value="BRAND_GUIDELINE">Diretriz Institucional da Marca</option>
-                </select>
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Categoria</label>
+              <select
+                value={guidelineCategory}
+                onChange={(e) => setGuidelineCategory(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
+              >
+                <option value="TONE_OF_VOICE">Tom de Voz & Estilo</option>
+                <option value="SAFETY">Segurança & Restrições</option>
+                <option value="STRUCTURE">Estrutura de Roteiro</option>
+                <option value="CUSTOMIZATION">Personalização</option>
+              </select>
+            </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Instrução / Conteúdo</label>
-                <textarea
-                  rows={5}
-                  required
-                  placeholder="Descreva exatamente a diretriz que deve orientar a geração de roteiros e textos..."
-                  value={guidelineContent}
-                  onChange={(e) => setGuidelineContent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Conteúdo / Prompt da Diretriz *</label>
+              <textarea
+                rows={5}
+                placeholder="Escreva a instrução exata para o modelo..."
+                value={guidelineContent}
+                onChange={(e) => setGuidelineContent(e.target.value)}
+                required
+                className="w-full p-2.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsGuidelineModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSavingGuideline}
-                  className="bg-[#001F5B] hover:bg-[#001744] text-white"
-                >
-                  {isSavingGuideline ? 'Salvando...' : 'Salvar Diretriz'}
-                </Button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setIsGuidelineModalOpen(false)} className="text-xs h-8">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSavingGuideline} className="bg-[#001F5B] text-white text-xs h-8 px-4 font-semibold">
+                {isSavingGuideline ? 'Salvando...' : 'Salvar Diretriz'}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* ARTICLE MODAL */}
+      {/* Modal: Knowledge Article */}
       {isArticleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100">
-              Novo Artigo da Base de Conhecimento
-            </h2>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleSaveArticle} className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fade-in text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Novo Artigo de Conhecimento</h3>
+              <p className="text-xs text-slate-500">Adicione fatos locais e recomendações para o RAG do modelo.</p>
+            </div>
 
-            <form onSubmit={handleSaveArticle} className="space-y-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Título do Artigo</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Segredos do Trastevere em Roma"
-                  value={articleTitle}
-                  onChange={(e) => setArticleTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Título do Artigo *</label>
+              <Input
+                type="text"
+                placeholder="Ex: Segredos Gastronômicos de Roma"
+                value={articleTitle}
+                onChange={(e) => setArticleTitle(e.target.value)}
+                required
+                className="text-xs h-9 bg-slate-50"
+              />
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Categoria</label>
-                  <select
-                    value={articleCategory}
-                    onChange={(e) => setArticleCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
-                  >
-                    <option value="DESTINATION">Destino Específico</option>
-                    <option value="FAQ">FAQ / Dúvidas Frequentes</option>
-                    <option value="LOGISTICS">Logística & Deslocamento</option>
-                    <option value="DINING">Gastronomia & Restaurantes</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Destino Relacionado</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Roma"
-                    value={articleDestination}
-                    onChange={(e) => setArticleDestination(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Tags (separadas por vírgula)</label>
-                <input
-                  type="text"
-                  value={articleTags}
-                  onChange={(e) => setArticleTags(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Conteúdo & Fatos</label>
-                <textarea
-                  rows={6}
-                  required
-                  placeholder="Informações factuais, dicas de segurança, horários recomendados..."
-                  value={articleContent}
-                  onChange={(e) => setArticleContent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsArticleModalOpen(false)}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Categoria</label>
+                <select
+                  value={articleCategory}
+                  onChange={(e) => setArticleCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSavingArticle}
-                  className="bg-[#001F5B] hover:bg-[#001744] text-white"
-                >
-                  {isSavingArticle ? 'Salvando...' : 'Salvar Artigo'}
-                </Button>
+                  <option value="DESTINATION">Destino</option>
+                  <option value="SAFETY">Segurança</option>
+                  <option value="GASTRONOMY">Gastronomia</option>
+                  <option value="TRANSPORT">Transporte</option>
+                </select>
               </div>
-            </form>
-          </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Destino (Opcional)</label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Roma"
+                  value={articleDestination}
+                  onChange={(e) => setArticleDestination(e.target.value)}
+                  className="text-xs h-9 bg-slate-50"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Conteúdo de Conhecimento *</label>
+              <textarea
+                rows={5}
+                placeholder="Fatos, dicas de transporte, regras de ouro do destino..."
+                value={articleContent}
+                onChange={(e) => setArticleContent(e.target.value)}
+                required
+                className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700">Tags (Separadas por vírgula)</label>
+              <Input
+                type="text"
+                value={articleTags}
+                onChange={(e) => setArticleTags(e.target.value)}
+                className="text-xs h-9 bg-slate-50 font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setIsArticleModalOpen(false)} className="text-xs h-8">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSavingArticle} className="bg-[#001F5B] text-white text-xs h-8 px-4 font-semibold">
+                {isSavingArticle ? 'Salvando...' : 'Salvar Artigo'}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
     </div>

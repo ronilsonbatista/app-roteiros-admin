@@ -14,11 +14,18 @@ import {
   ShieldCheck, 
   RotateCw,
   Code,
-  CheckCircle2
+  CheckCircle2,
+  Terminal,
+  Zap,
+  Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/admin/page-header';
+import { MetricCard } from '@/components/admin/metric-card';
+import { StatusBadge } from '@/components/admin/status-badge';
 import { runPlaygroundSimulation, PlaygroundSimulateResult } from '@/services/ai-intelligence.service';
 
 export default function AiPlaygroundPage() {
@@ -65,217 +72,233 @@ export default function AiPlaygroundPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
+      {/* Page Header */}
+      <PageHeader
+        category="INTELIGÊNCIA ARTIFICIAL"
+        title="AI Evaluation Playground & Simulação"
+        subtitle="Ambiente de testes e avaliação profissional para validar respostas, consumo de tokens e comportamento do modelo GPT em memória"
+        breadcrumbs={[
+          { label: 'Inteligência', href: '/intelligence' },
+          { label: 'Playground IA' }
+        ]}
+        actions={
           <div className="flex items-center gap-2">
-            <Link href="/intelligence" className="text-slate-400 hover:text-slate-700">
-              <ArrowLeft className="w-4 h-4" />
+            <Link href="/intelligence">
+              <Button variant="outline" size="sm" className="text-xs h-9 bg-white border-slate-200 text-slate-700">
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                Voltar para Central de IA
+              </Button>
             </Link>
-            <FlaskConical className="w-6 h-6 text-purple-600" />
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Playground & Simulação da IA</h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Ambiente seguro para testar o comportamento da IA e qualidade dos roteiros gerados sem poluir o banco de dados.
-          </p>
-        </div>
-      </div>
+        }
+      />
 
       {/* Safety Isolation Notice */}
-      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-3">
-        <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0" />
-        <div>
-          <b>Ambiente Isolado em Memória:</b> Esta simulação roda com isolamento total. Nenhuma viagem real, usuário falso, compra ou entitlement é persistido no banco de dados.
+      <div className="p-3 bg.emerald-50 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-md bg-emerald-600 text-white shrink-0">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold">Ambiente Totalmente Isolado em Memória: </span>
+            <span className="text-emerald-800">
+              Nenhuma viagem real, usuário, compra ou entitlement é persistido no banco de dados durante estas simulações.
+            </span>
+          </div>
         </div>
+        <StatusBadge status="OPERATIONAL" label="Sandbox Ativo" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Form Inputs (Left Column) */}
-        <div className="lg:col-span-4">
-          <Card className="p-5 bg-white border-slate-200 shadow-xs space-y-4 text-xs">
-            <h2 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#FF6A00]" />
-              Parâmetros de Simulação
-            </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Scenario Input Form (Left Column: 5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          <Card className="p-5 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#FF6A00]" />
+                Parâmetros do Cenário de Teste
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Configure as variáveis de entrada da síntese.</p>
+            </div>
 
-            <form onSubmit={handleSimulate} className="space-y-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Destino</label>
-                <input
+            <form onSubmit={handleSimulate} className="space-y-4">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Destino Alvo *</label>
+                <Input
                   type="text"
-                  required
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Ex: Paris, Roma, Tóquio, Santiago..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  placeholder="Ex: Paris, Tóquio, Roma..."
+                  required
+                  className="text-xs h-9 bg-slate-50"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Duração (Dias)</label>
-                  <input
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Duração (Dias)</label>
+                  <Input
                     type="number"
                     min={1}
                     max={15}
                     value={numberOfDays}
-                    onChange={(e) => setNumberOfDays(parseInt(e.target.value, 10))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    onChange={(e) => setNumberOfDays(Number(e.target.value))}
+                    className="text-xs h-9 bg-slate-50"
                   />
                 </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Orçamento</label>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Nível Orçamentário</label>
                   <select
                     value={budgetLevel}
                     onChange={(e) => setBudgetLevel(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   >
-                    <option value="LOW">Econômico</option>
-                    <option value="MEDIUM">Moderado</option>
-                    <option value="HIGH">Sofisticado / Alto</option>
+                    <option value="LOW">Econômico (LOW)</option>
+                    <option value="MEDIUM">Moderado (MEDIUM)</option>
+                    <option value="HIGH">Luxo / Exclusivo (HIGH)</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Estilo de Viagem</label>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Estilo de Viagem</label>
                 <select
                   value={travelStyle}
                   onChange={(e) => setTravelStyle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 >
                   <option value="Cultura & Gastronomia">Cultura & Gastronomia</option>
-                  <option value="Conforto & Lazer">Conforto & Lazer</option>
                   <option value="Aventura & Natureza">Aventura & Natureza</option>
-                  <option value="Romântico / Casal">Romântico / Casal</option>
+                  <option value="Romântico & Relax">Romântico & Relax</option>
                   <option value="Família com Crianças">Família com Crianças</option>
                 </select>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Interesses Específicos</label>
-                <input
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Interesses (Separados por vírgula)</label>
+                <Input
                   type="text"
                   value={interestsInput}
                   onChange={(e) => setInterestsInput(e.target.value)}
-                  placeholder="Separados por vírgula"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="text-xs h-9 bg-slate-50 font-mono"
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Prompt / Contexto Adicional</label>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700">Prompt / Instrução Adicional</label>
                 <textarea
                   rows={3}
                   value={additionalPrompt}
                   onChange={(e) => setAdditionalPrompt(e.target.value)}
-                  placeholder="Instruções adicionais de teste..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 h-9 text-xs"
+                className="w-full bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs h-10 font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer"
               >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                    Simulando no Core...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Executar Simulação Segura
-                  </span>
-                )}
+                <Zap className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                {isLoading ? 'Sintetizando Roteiro...' : 'Executar Avaliação IA'}
               </Button>
             </form>
           </Card>
         </div>
 
-        {/* Results Area (Right Column) */}
-        <div className="lg:col-span-8">
+        {/* Results & Metadata Panel (Right Column: 7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
           {simulationResult ? (
-            <div className="space-y-4">
-              {/* Telemetry Header Card */}
-              <div className="p-4 bg-slate-900 text-slate-100 rounded-2xl flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-purple-400" />
-                  <span>Modelo: <b>{simulationResult.metrics.model}</b></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span>Duração: <b>{simulationResult.metrics.durationMs}ms</b></span>
-                </div>
-                <div>
-                  Tokens: <b>{simulationResult.metrics.tokensUsed || 'N/A'}</b>
-                </div>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  simulationResult.metrics.isRealProvider ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
-                }`}>
-                  {simulationResult.metrics.isRealProvider ? 'OpenAI Real' : 'Deterministic Mock'}
-                </span>
+            <div className="space-y-4 animate-fade-in">
+              {/* Execution Metadata Bar */}
+              <div className="grid grid-cols-3 gap-3">
+                <MetricCard
+                  title="MODELO UTILIZADO"
+                  value={(simulationResult as any).metrics?.model || (simulationResult as any).metadata?.model || 'gpt-4o-mini'}
+                  subtitle="OpenAI Engine"
+                  icon={Cpu}
+                />
+                <MetricCard
+                  title="ESTIMATIVA DE TOKENS"
+                  value={(simulationResult as any).metrics?.tokensUsed || (simulationResult as any).metadata?.tokensUsed || 0}
+                  subtitle="Prompt + Completion"
+                  icon={Coins}
+                />
+                <MetricCard
+                  title="TEMPO DE RESPOSTA"
+                  value={`${((((simulationResult as any).metrics?.durationMs || (simulationResult as any).metadata?.durationMs || 0)) / 1000).toFixed(2)}s`}
+                  subtitle="Latência da síntese"
+                  icon={Clock}
+                />
               </div>
 
-              {/* Itinerary Preview Tabs */}
-              <Tabs defaultValue="visual" className="space-y-3">
-                <TabsList className="bg-slate-100 p-1 border border-slate-200">
-                  <TabsTrigger value="visual" className="text-xs">
-                    Roteiro Estruturado
-                  </TabsTrigger>
-                  <TabsTrigger value="raw" className="text-xs">
-                    <Code className="w-3.5 h-3.5 mr-1" />
-                    JSON Bruto
-                  </TabsTrigger>
-                </TabsList>
+              {/* Tabs for Result Inspection */}
+              <Card className="p-5 bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-4">
+                <Tabs defaultValue="itinerary" className="space-y-4">
+                  <TabsList className="bg-slate-100 p-1 rounded-lg">
+                    <TabsTrigger value="itinerary" className="text-xs font-semibold px-3 py-1">Roteiro Gerado</TabsTrigger>
+                    <TabsTrigger value="raw" className="text-xs font-semibold px-3 py-1">JSON Estruturado</TabsTrigger>
+                    <TabsTrigger value="applied" className="text-xs font-semibold px-3 py-1">Diretrizes Aplicadas</TabsTrigger>
+                  </TabsList>
 
-                {/* Visual Cards */}
-                <TabsContent value="visual" className="space-y-4">
-                  {simulationResult.simulationData.days?.map((d) => (
-                    <Card key={d.dayNumber} className="p-4 bg-white border-slate-200 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <span className="font-bold text-slate-900 text-sm">{d.title}</span>
-                        <span className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-semibold">
-                          Dia {d.dayNumber}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600">{d.description}</p>
+                  {/* Tab: Itinerary View */}
+                  <TabsContent value="itinerary" className="space-y-4">
+                    <div className="border-b border-slate-100 pb-3">
+                      <h3 className="text-base font-bold text-slate-900">{(simulationResult as any).result?.title || (simulationResult as any).simulationData?.destination || destination}</h3>
+                      <p className="text-xs text-slate-500">{(simulationResult as any).result?.summary || (simulationResult as any).simulationData?.travelStyle}</p>
+                    </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
-                        {d.items?.map((item, idx) => (
-                          <div key={idx} className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 space-y-1">
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className="font-bold uppercase text-slate-400">{item.period}</span>
-                              <span className="text-[9px] bg-slate-200/60 px-1.5 py-0.2 rounded text-slate-600">
-                                {item.category}
-                              </span>
-                            </div>
-                            <div className="font-semibold text-slate-900 text-xs">{item.title}</div>
-                            <p className="text-[11px] text-slate-500 line-clamp-2">{item.description}</p>
+                    <div className="space-y-4">
+                      {((simulationResult as any).result?.days || (simulationResult as any).simulationData?.days)?.map((day: any, idx: number) => (
+                        <div key={idx} className="p-4 bg-slate-50/70 border border-slate-200/60 rounded-xl space-y-3">
+                          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                            <span className="text-xs font-bold text-[#001F5B] font-mono">Dia {day.dayNumber}: {day.title}</span>
                           </div>
-                        ))}
-                      </div>
-                    </Card>
-                  ))}
-                </TabsContent>
+                          {day.description && <p className="text-xs text-slate-600">{day.description}</p>}
+                          <div className="space-y-2">
+                            {day.items?.map((item: any, iIdx: number) => (
+                              <div key={iIdx} className="p-2.5 bg-white rounded-lg border border-slate-200/60 text-xs space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-900">{item.title}</span>
+                                  <StatusBadge status={item.category || 'TOURIST_ATTRACTION'} />
+                                </div>
+                                {item.description && <p className="text-slate-600 text-[11px]">{item.description}</p>}
+                                {item.location && <p className="text-[10px] text-slate-400 font-mono">📍 {item.location}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
 
-                {/* Raw JSON */}
-                <TabsContent value="raw">
-                  <div className="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-[500px]">
-                    <pre>{JSON.stringify(simulationResult, null, 2)}</pre>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  {/* Tab: Raw JSON */}
+                  <TabsContent value="raw">
+                    <pre className="p-4 bg-slate-900 text-emerald-400 rounded-xl text-[11px] font-mono max-h-96 overflow-y-auto">
+                      {JSON.stringify(simulationResult, null, 2)}
+                    </pre>
+                  </TabsContent>
+
+                  {/* Tab: Applied Guidelines */}
+                  <TabsContent value="applied" className="space-y-2 text-xs">
+                    <p className="font-semibold text-slate-700">Diretrizes de IA ativas aplicadas na simulação:</p>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 space-y-1 font-mono text-[11px]">
+                      {(simulationResult as any).appliedGuidelines?.map((g: any, i: number) => (
+                        <div key={i}>• {g.name} ({g.category})</div>
+                      )) || <div>• Diretriz padrão de Tom de Voz & Imersão Cultural</div>}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </Card>
             </div>
           ) : (
-            <Card className="p-12 bg-white border-slate-200 shadow-xs text-center text-slate-400 space-y-2">
-              <FlaskConical className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-xs font-semibold text-slate-600">Nenhuma simulação executada ainda.</p>
-              <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                Preencha os parâmetros no painel lateral e clique em &quot;Executar Simulação Segura&quot; para testar as respostas da IA.
+            <Card className="p-12 text-center bg-white border border-slate-200/90 shadow-2xs rounded-xl space-y-3">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mx-auto">
+                <Terminal className="w-6 h-6 text-[#001F5B]" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-900">Aguardando Execução</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Preencha os parâmetros à esquerda e clique em &quot;Executar Avaliação IA&quot; para disparar a síntese.
               </p>
             </Card>
           )}

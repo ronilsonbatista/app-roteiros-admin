@@ -39,6 +39,7 @@ import {
   SheetDescription,
   SheetFooter
 } from '@/components/ui/sheet';
+import { PageHeader } from '@/components/admin/page-header';
 
 import {
   ArrowLeft,
@@ -460,74 +461,62 @@ export default function TripDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-3">
-          <Link href="/trips">
+      {/* Page Header */}
+      <PageHeader
+        category="GESTOR DE ROTEIRO"
+        title={trip?.title || trip?.destination || 'Detalhes da Viagem'}
+        subtitle={`Destino: ${trip?.destination || 'N/D'} • Criado por ${trip?.user?.fullName || 'Usuário'} (${trip?.user?.email || ''})`}
+        breadcrumbs={[
+          { label: 'Viagens', href: '/trips' },
+          { label: trip?.destination || 'Roteiro' }
+        ]}
+        actions={
+          <div className="flex items-center gap-3">
+            {/* Active Premium switch toggle */}
+            {trip && (
+              <div className="flex items-center gap-2.5 bg-white border border-slate-200/90 p-1.5 px-3 rounded-lg shadow-2xs">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${trip.premiumUnlockedAt ? 'text-amber-600' : 'text-slate-400'}`}>
+                  Full Access
+                </span>
+                <button
+                  type="button"
+                  onClick={handleTogglePremium}
+                  disabled={isSaving}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    trip.premiumUnlockedAt ? 'bg-amber-500' : 'bg-slate-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                      trip.premiumUnlockedAt ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+
             <Button
               variant="outline"
-              size="icon"
-              className="border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl h-10 w-10 cursor-pointer"
+              size="sm"
+              onClick={fetchTripDetails}
+              disabled={isLoading}
+              className="text-xs h-9 bg-white border-slate-200 text-slate-700"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <RotateCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
+              Atualizar
             </Button>
-          </Link>
-          
-          <div className="space-y-0.5">
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <Compass className="w-5.5 h-5.5 text-[#001F5B]" />
-              Painel de Operações: {trip?.title || 'Carregando...'}
-            </h1>
-            <p className="text-slate-400 text-xs font-semibold flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
-              Destino do Usuário: {trip?.destination || 'N/D'}
-            </p>
+
+            <Button
+              size="sm"
+              onClick={() => handleOpenDay()}
+              className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Adicionar Dia
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Active Premium switch toggle */}
-          {trip && (
-            <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-100 p-1.5 px-3.5 rounded-xl shadow-xs">
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${trip.premiumUnlockedAt ? 'text-amber-600' : 'text-slate-400'}`}>
-                Premium
-              </span>
-              <button
-                type="button"
-                onClick={handleTogglePremium}
-                disabled={isSaving}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  trip.premiumUnlockedAt ? 'bg-amber-500' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                    trip.premiumUnlockedAt ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            onClick={fetchTripDetails}
-            disabled={isLoading}
-            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold cursor-pointer rounded-xl h-11 px-4 shadow-sm flex items-center gap-2"
-          >
-            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
-            Atualizar Painel
-          </Button>
-
-          <Button
-            onClick={() => handleOpenDay()}
-            className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-xl h-11 px-5 shadow-md flex items-center gap-2 cursor-pointer transition-colors duration-200"
-          >
-            <Plus className="w-4 h-4" />
-            Adicionar Dia
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl">
