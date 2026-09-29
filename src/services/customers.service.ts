@@ -7,7 +7,7 @@ export interface CustomerSummary {
   phone: string | null;
   role: string;
   origin: string;
-  stage: 'LEAD' | 'PROSPECT' | 'CUSTOMER_PAID' | 'CUSTOMER_UNPAID' | 'INACTIVE';
+  stage: 'CUSTOMER_PAID' | 'CUSTOMER_UNPAID';
   marketingConsent: boolean;
   marketingConsentAt: string | null;
   unsubscribedAt: string | null;
@@ -66,7 +66,7 @@ export interface Customer360Data {
     travelProfile: any;
   };
   metrics: {
-    stage: 'LEAD' | 'PROSPECT' | 'CUSTOMER_PAID' | 'CUSTOMER_UNPAID' | 'INACTIVE';
+    stage: 'CUSTOMER_PAID' | 'CUSTOMER_UNPAID';
     totalSpent: number;
     purchasesCount: number;
     tripsCount: number;
@@ -141,7 +141,7 @@ export interface LeadsListResponse {
 }
 
 export async function listCustomers(params: CustomerFilterParams = {}): Promise<CustomerListResponse> {
-  const response = await api.get('/admin/customers', { params });
+  const response = await api.get('/admin/customers', { params: { ...params, hasConsent: params.marketingConsent, marketingConsent: undefined } });
   return response.data?.data || response.data;
 }
 
@@ -151,7 +151,7 @@ export async function getCustomer360(id: string): Promise<Customer360Data> {
 }
 
 export async function updateCustomerConsent(id: string, marketingConsent: boolean) {
-  const response = await api.patch(`/admin/customers/${id}/consent`, { marketingConsent });
+  const response = await api.patch(`/admin/customers/${id}/consent`, { consent: marketingConsent });
   return response.data?.data || response.data;
 }
 

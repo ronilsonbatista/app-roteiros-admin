@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { 
+  UserRound,
   CheckCircle2, 
   Clock, 
   XCircle, 
@@ -69,12 +70,20 @@ export function StatusBadge({ status, label, className, size = 'sm' }: StatusBad
       displayLabel = label || (normalized === 'CHARGEBACK' ? 'Chargeback' : 'Reembolsado');
       break;
 
+    case 'CONTACT':
+      displayLabel = label || 'Contato comercial';
+      icon = <UserRound className="w-3 h-3 shrink-0" />;
+      break;
+    case 'CUSTOMER_UNPAID':
+      displayLabel = label || 'Sem compra aprovada';
+      icon = <Clock className="w-3 h-3 shrink-0" />;
+      break;
     // CRM / Stages
     case 'CUSTOMER_PAID':
     case 'CLIENTE_PAGO':
       styles = "bg-emerald-50 text-emerald-800 border-emerald-200";
       icon = <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />;
-      displayLabel = label || 'Cliente Pago';
+      displayLabel = label || 'Compra aprovada';
       break;
 
     case 'PROSPECT':

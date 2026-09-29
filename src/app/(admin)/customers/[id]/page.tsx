@@ -191,7 +191,7 @@ export default function Customer360Page() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             title="LIFETIME VALUE (LTV)"
-            value={`R$ ${(metrics.totalSpent / 100).toFixed(2)}`}
+            value={`R$ ${metrics.totalSpent.toFixed(2)}`}
             subtitle="Total acumulado pago"
             icon={Coins}
           />
@@ -327,7 +327,7 @@ export default function Customer360Page() {
                         <td className="px-4 py-3">
                           <StatusBadge status={p.status} />
                         </td>
-                        <td className="px-4 py-3 font-bold text-slate-900">R$ {(p.finalAmount / 100).toFixed(2)}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">R$ {p.finalAmount.toFixed(2)}</td>
                         <td className="px-4 py-3 text-slate-500">{new Date(p.createdAt).toLocaleDateString('pt-BR')}</td>
                       </tr>
                     ))}

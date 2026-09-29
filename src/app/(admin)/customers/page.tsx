@@ -1,16 +1,17 @@
 'use client';
 
+import { CommercialContacts } from '@/components/admin/commercial-contacts';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  Users, 
-  ChevronLeft, 
-  ChevronRight, 
-  Eye, 
-  CheckCircle2, 
-  XCircle, 
-  ShoppingBag, 
-  MapPin, 
+import {
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  ShoppingBag,
+  MapPin,
   RefreshCw,
   ArrowRight,
   ShieldCheck
@@ -24,6 +25,7 @@ import { EmptyState } from '@/components/admin/empty-state';
 import { listCustomers, CustomerSummary, CustomerFilterParams } from '@/services/customers.service';
 
 export default function CustomersPage() {
+  const [source, setSource] = useState<'APP' | 'CRM'>('APP');
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 15, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
@@ -79,11 +81,17 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap gap-2" aria-label="Fontes de clientes">
+        <Button variant={source === 'APP' ? 'default' : 'outline'} onClick={() => setSource('APP')}>Usuários do app</Button>
+        <Button variant={source === 'CRM' ? 'default' : 'outline'} onClick={() => setSource('CRM')}>Contatos comerciais</Button>
+      </div>
+      {source === 'CRM' ? <CommercialContacts /> : <>
+
       {/* Header */}
       <PageHeader
         category="CLIENTES & CRM"
-        title="Base de Clientes & Usuários"
-        subtitle="Gestão unificada da base de clientes, contatos LGPD, histórico financeiro e visão 360°"
+        title="Clientes do aplicativo"
+        subtitle="Contas do aplicativo classificadas por compra aprovada. Contatos comerciais ficam na outra aba; administradores ficam em Configurações."
         breadcrumbs={[{ label: 'Clientes & CRM' }, { label: 'Todos os Clientes' }]}
         actions={
           <div className="flex items-center gap-2">
@@ -120,11 +128,11 @@ export default function CustomersPage() {
           className="h-9 px-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-700"
         >
           <option value="">Todos os Estágios</option>
-          <option value="CUSTOMER_PAID">Cliente Pago</option>
-          <option value="PROSPECT">Prospect (Preview)</option>
-          <option value="CUSTOMER_UNPAID">Cadastrado Sem Compra</option>
-          <option value="LEAD">Lead Inicial</option>
-          <option value="INACTIVE">Inativo</option>
+          <option value="CUSTOMER_PAID">Compra aprovada</option>
+
+          <option value="CUSTOMER_UNPAID">Sem compra aprovada</option>
+
+
         </select>
 
         <select
@@ -217,7 +225,7 @@ export default function CustomersPage() {
                     {/* Origin */}
                     <td className="px-4 py-3">
                       <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200">
-                        {c.origin || 'ORGANIC'}
+                        App · {c.origin || 'mobile'}
                       </span>
                     </td>
 
@@ -244,7 +252,7 @@ export default function CustomersPage() {
 
                     {/* Total Spent */}
                     <td className="px-4 py-3 font-semibold text-slate-900 font-sans">
-                      R$ {(c.totalSpent / 100).toFixed(2)}
+                      R$ {c.totalSpent.toFixed(2)}
                     </td>
 
                     {/* Marketing Consent */}
@@ -317,6 +325,7 @@ export default function CustomersPage() {
           </div>
         </div>
       </Card>
+      </>}
     </div>
   );
 }
