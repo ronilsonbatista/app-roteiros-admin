@@ -79,13 +79,14 @@ export interface UserTrip {
 export async function listUsers(
   page: number = 1,
   limit: number = 10,
-  search?: string
+  search?: string,
+  role: 'USER' | 'ADMIN' = 'USER'
 ): Promise<UserListResponse> {
   const params: Record<string, any> = { page, limit };
   if (search) {
     params.search = search;
   }
-  const response = await api.get('/admin/users', { params });
+  const response = await api.get(role === 'ADMIN' ? '/admin/administrators' : '/admin/users', { params });
   return response.data?.data || response.data;
 }
 

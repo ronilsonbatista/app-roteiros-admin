@@ -1,4 +1,5 @@
 'use client';
+import { ItineraryAiActions } from '@/components/admin/itinerary-ai-actions';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -517,6 +518,8 @@ export default function TripDetailPage() {
           </div>
         }
       />
+
+      {trip && <ItineraryAiActions id={trip.id} kind="trips" empty={!trip.days?.length} onSaved={fetchTripDetails} />}
 
       {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl">

@@ -58,6 +58,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     {
       title: 'CLIENTES & CRM',
       items: [
+        { name: 'Usuários do App', href: '/users', icon: Users },
         { name: 'Clientes', href: '/customers', icon: Users },
         { name: 'Leads & Funil', href: '/leads', icon: Funnel },
       ],
@@ -66,6 +67,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       title: 'VIAGENS',
       items: [
         { name: 'Viagens no App', href: '/trips', icon: Map },
+        { name: 'Editor de Roteiros', href: '/itinerary-editor', icon: FileText },
         { name: 'Roteiros Base', href: '/base-trips', icon: Compass },
       ],
     },
@@ -106,7 +108,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       title: 'SISTEMA',
       items: [
         { name: 'Provider Health & Logs', href: '/system', icon: ServerCog },
-        { name: 'Usuários Admin', href: '/users', icon: UserCheck },
+        { name: 'Configurações', href: '/settings', icon: UserCheck },
         { name: 'Mídias', href: '/media', icon: ImageIcon },
       ],
     },

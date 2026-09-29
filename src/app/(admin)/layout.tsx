@@ -9,6 +9,7 @@ import api from '@/lib/axios';
 import { deleteCookie } from '@/lib/cookies';
 
 export interface UserProfile {
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -31,6 +32,7 @@ export default function AdminLayout({
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,18 +41,18 @@ export default function AdminLayout({
       try {
         const response = await api.get('/users/me');
         if (isMounted) {
-          setUser(response.data?.data || response.data);
+          const profile = response.data?.data || response.data;
+          if (profile.role !== 'ADMIN') {
+            deleteCookie('accessToken'); deleteCookie('refreshToken'); router.replace('/login'); return;
+          }
+          setUser({ id: profile.id, name: profile.fullName || profile.name, email: profile.email, role: profile.role });
           setLoading(false);
         }
       } catch (error) {
         console.error('Failed to load profile:', error);
         
         if (isMounted) {
-          setUser({
-            name: 'Administrador 2GO',
-            email: 'admin@2goroteiros.com',
-            role: 'ADMIN'
-          });
+          setProfileError(true);
           setLoading(false);
         }
       }
@@ -62,6 +64,8 @@ export default function AdminLayout({
       isMounted = false;
     };
   }, [router]);
+
+  if (profileError) return <div className="p-10 space-y-4"><p>Não foi possível confirmar sua sessão administrativa.</p><button onClick={() => window.location.reload()}>Tentar novamente</button></div>;
 
   if (loading) {
     return (
