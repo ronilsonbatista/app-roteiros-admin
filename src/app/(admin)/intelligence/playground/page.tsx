@@ -46,6 +46,7 @@ export default function AiPlaygroundPage() {
       return;
     }
 
+    setSimulationResult(null);
     setIsLoading(true);
     try {
       const interests = interestsInput
@@ -219,7 +220,7 @@ export default function AiPlaygroundPage() {
                   icon={Cpu}
                 />
                 <MetricCard
-                  title="ESTIMATIVA DE TOKENS"
+                  title="TOKENS UTILIZADOS"
                   value={(simulationResult as any).metrics?.tokensUsed || (simulationResult as any).metadata?.tokensUsed || 0}
                   subtitle="Prompt + Completion"
                   icon={Coins}
@@ -238,7 +239,7 @@ export default function AiPlaygroundPage() {
                   <TabsList className="bg-slate-100 p-1 rounded-lg">
                     <TabsTrigger value="itinerary" className="text-xs font-semibold px-3 py-1">Roteiro Gerado</TabsTrigger>
                     <TabsTrigger value="raw" className="text-xs font-semibold px-3 py-1">JSON Estruturado</TabsTrigger>
-                    <TabsTrigger value="applied" className="text-xs font-semibold px-3 py-1">Diretrizes Aplicadas</TabsTrigger>
+                    <TabsTrigger value="applied" className="text-xs font-semibold px-3 py-1">Sobre este teste</TabsTrigger>
                   </TabsList>
 
                   {/* Tab: Itinerary View */}
@@ -281,11 +282,11 @@ export default function AiPlaygroundPage() {
 
                   {/* Tab: Applied Guidelines */}
                   <TabsContent value="applied" className="space-y-2 text-xs">
-                    <p className="font-semibold text-slate-700">Diretrizes de IA ativas aplicadas na simulação:</p>
+                    <p className="font-semibold text-slate-700">Este teste usa os parâmetros preenchidos no formulário.</p>
                     <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 space-y-1 font-mono text-[11px]">
                       {(simulationResult as any).appliedGuidelines?.map((g: any, i: number) => (
                         <div key={i}>• {g.name} ({g.category})</div>
-                      )) || <div>• Diretriz padrão de Tom de Voz & Imersão Cultural</div>}
+                      )) || <div>A biblioteca de roteiros e as diretrizes cadastradas não são consultadas por este Playground.</div>}
                     </div>
                   </TabsContent>
                 </Tabs>

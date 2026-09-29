@@ -158,6 +158,6 @@ export async function runPlaygroundSimulation(data: {
   interests?: string[];
   additionalPrompt?: string;
 }): Promise<PlaygroundSimulateResult> {
-  const res = await api.post('/admin/ai-intelligence/playground/simulate', data);
+  const res = await api.post('/admin/ai-intelligence/playground', data, { timeout: 180000 });
   return res.data?.data || res.data;
 }
