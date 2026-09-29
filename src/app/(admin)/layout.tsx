@@ -41,7 +41,11 @@ export default function AdminLayout({
       try {
         const response = await api.get('/users/me');
         if (isMounted) {
-          const profile = response.data?.data || response.data;
+          const session = response.data?.data || response.data;
+          const identity = session.user || session;
+          const id = identity.userId || identity.id;
+          const detail = await api.get(`/admin/users/${encodeURIComponent(id)}`);
+          const profile = detail.data?.data || detail.data;
           if (profile.role !== 'ADMIN') {
             deleteCookie('accessToken'); deleteCookie('refreshToken'); router.replace('/login'); return;
           }
