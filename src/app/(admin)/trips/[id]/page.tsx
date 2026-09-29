@@ -1,4 +1,5 @@
 'use client';
+import { TravelPreferences } from '@/components/admin/travel-preferences';
 import { ItineraryAiActions } from '@/components/admin/itinerary-ai-actions';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -442,13 +443,14 @@ export default function TripDetailPage() {
     return map[cat] || cat;
   };
 
-  const formatDatePT = (dateStr?: string | null) => {
+  const formatDatePT = (dateStr?: string | null, calendarDate = false) => {
     if (!dateStr) return '';
     try {
       return new Intl.DateTimeFormat('pt-BR', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        ...(calendarDate ? { timeZone: 'UTC' } : {})
       }).format(new Date(dateStr));
     } catch (e) {
       return dateStr;
@@ -573,9 +575,7 @@ export default function TripDetailPage() {
               </div>
               <CardContent className="p-4">
                 {trip.preferences ? (
-                  <div className="p-3 bg-slate-900 border border-slate-850 rounded-xl max-h-48 overflow-y-auto text-[10px] text-slate-300 font-mono shadow-inner leading-relaxed">
-                    <pre>{JSON.stringify(trip.preferences, null, 2)}</pre>
-                  </div>
+                  <TravelPreferences preferences={trip.preferences} />
                 ) : (
                   <p className="text-[11px] text-slate-400 italic text-center py-2">
                     Nenhuma preferência cadastrada.
@@ -704,7 +704,7 @@ export default function TripDetailPage() {
                           </h4>
                           <span className="text-[10px] text-slate-400 flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {day.date ? formatDatePT(day.date) : 'Data não definida'}
+                            {day.date ? formatDatePT(day.date, true) : 'Data não definida'}
                           </span>
                         </div>
                       </div>
@@ -819,7 +819,7 @@ export default function TripDetailPage() {
                                     {item.providerPlaceId && (
                                       <div className="mt-1 flex flex-wrap gap-2 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100/50 p-1.5 rounded-lg w-fit">
                                         <Navigation className="w-3 h-3 text-emerald-500" />
-                                        Google Place Vinculado
+                                        Referência de localização
                                       </div>
                                     )}
 
@@ -832,7 +832,7 @@ export default function TripDetailPage() {
                                       )}
                                       {item.cost !== undefined && item.cost !== null && (
                                         <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">
-                                          Custo: {formatPrice(item.cost, item.currency || 'BRL')}
+                                          Estimativa salva: {formatPrice(item.cost, item.currency || 'BRL')}
                                         </span>
                                       )}
                                       {item.externalLink && (
