@@ -823,6 +823,16 @@ export default function TripDetailPage() {
                                       </div>
                                     )}
 
+                                    {item.notes && (
+                                      <div className="mt-1.5 p-2.5 bg-amber-50/80 border border-amber-200/70 rounded-xl text-[10px] text-slate-700 leading-relaxed font-medium">
+                                        <div className="flex items-center gap-1 font-bold text-amber-800 mb-1">
+                                          <Info className="w-3 h-3 text-amber-600 shrink-0" />
+                                          Orientações Práticas, Deslocamento & Alternativas
+                                        </div>
+                                        <p className="whitespace-pre-line text-slate-600">{item.notes}</p>
+                                      </div>
+                                    )}
+
                                     {/* Extra quick metadata info */}
                                     <div className="flex flex-wrap gap-2 pt-1">
                                       {item.duration && (
@@ -832,7 +842,7 @@ export default function TripDetailPage() {
                                       )}
                                       {item.cost !== undefined && item.cost !== null && (
                                         <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">
-                                          Estimativa salva: {formatPrice(item.cost, item.currency || 'BRL')}
+                                          Estimativa: {formatPrice(item.cost, item.currency || 'EUR')}
                                         </span>
                                       )}
                                       {item.externalLink && (
