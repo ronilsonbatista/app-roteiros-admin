@@ -19,6 +19,9 @@ export type ItineraryCategory =
   | 'FREE_ACTIVITY' 
   | 'PAID_ACTIVITY';
 
+export type TransitMode = 'WALKING' | 'DRIVING' | 'TRANSIT' | 'BICYCLING';
+export type TicketStatus = 'FREE' | 'TICKET_REQUIRED' | 'UNKNOWN';
+
 export interface ItineraryItem {
   id: string;
   tripDayId: string;
@@ -39,6 +42,10 @@ export interface ItineraryItem {
   order: number;
   providerPlaceId?: string | null;
   placeProvider?: string | null;
+  transitDistanceMeters?: number | null;
+  transitDurationMinutes?: number | null;
+  transitMode?: TransitMode;
+  ticketStatus?: TicketStatus;
   isEditable: boolean;
   isUserModified: boolean;
   createdAt: string;
@@ -80,6 +87,26 @@ export interface TripParticipant {
   updatedAt: string;
 }
 
+export interface TripAccommodation {
+  id: string;
+  tripId: string;
+  name: string;
+  address?: string | null;
+  neighborhood?: string | null;
+  zipCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  providerPlaceId?: string | null;
+  checkInDateTime?: string | null;
+  checkOutDateTime?: string | null;
+  checkInDate?: string | null;
+  checkInTime?: string | null;
+  checkOutDate?: string | null;
+  checkOutTime?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Trip {
   id: string;
   userId: string;
@@ -90,6 +117,11 @@ export interface Trip {
   endDate?: string | null;
   status: TripStatus;
   preferences?: Record<string, any> | null;
+  arrivalDateTime?: string | null;
+  departureDateTime?: string | null;
+  allowedSwapsCount?: number;
+  usedSwapsCount?: number;
+  accommodation?: TripAccommodation | null;
   createdAt: string;
   updatedAt: string;
   premiumUnlockedAt?: string | null;
