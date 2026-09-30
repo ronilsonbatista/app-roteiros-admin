@@ -45,6 +45,8 @@ export interface BaseAttraction {
   observations?: string | null;
   notes?: string | null;
   order: number;
+  providerPlaceId?: string | null;
+  placeProvider?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +69,8 @@ export interface BaseRestaurant {
   longitude?: number | null;
   notes?: string | null;
   order: number;
+  providerPlaceId?: string | null;
+  placeProvider?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -308,5 +312,21 @@ export async function updateBaseRestaurant(id: string, dto: UpdateBaseRestaurant
  */
 export async function deleteBaseRestaurant(id: string): Promise<BaseRestaurant> {
   const response = await api.delete(`/admin/base-restaurants/${id}`);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Enrich a Base Attraction with verified Google Places data
+ */
+export async function enrichBaseAttraction(id: string, providerPlaceId: string): Promise<BaseAttraction> {
+  const response = await api.patch(`/admin/base-attractions/${id}/place`, { providerPlaceId });
+  return response.data?.data || response.data;
+}
+
+/**
+ * Enrich a Base Restaurant with verified Google Places data
+ */
+export async function enrichBaseRestaurant(id: string, providerPlaceId: string): Promise<BaseRestaurant> {
+  const response = await api.patch(`/admin/base-restaurants/${id}/place`, { providerPlaceId });
   return response.data?.data || response.data;
 }

@@ -15,6 +15,8 @@ import {
   createBaseRestaurant,
   updateBaseRestaurant,
   deleteBaseRestaurant,
+  enrichBaseAttraction,
+  enrichBaseRestaurant,
   BaseTrip,
   BaseTripDay,
   BaseAttraction,
@@ -23,6 +25,7 @@ import {
   BaseTripStatus,
   BaseTripVisibility
 } from '@/services/base-trips.service';
+import { searchPlaces, PlaceSearchResult } from '@/services/trips.service';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +69,8 @@ import {
   DollarSign,
   Smile,
   Accessibility,
-  HeartHandshake
+  HeartHandshake,
+  Navigation
 } from 'lucide-react';
 
 export default function BaseTripDetailPage() {
@@ -133,6 +137,55 @@ export default function BaseTripDetailPage() {
   const [restaurantDish, setRestaurantDish] = useState('');
   const [restaurantNotes, setRestaurantNotes] = useState('');
   const [restaurantOrder, setRestaurantOrder] = useState(1);
+
+  // Google Places Enrichment
+  const [placeDrawerOpen, setPlaceDrawerOpen] = useState(false);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [enrichingTarget, setEnrichingTarget] = useState<{ type: 'attraction' | 'restaurant'; id: string; name: string } | null>(null);
+
+  const handleOpenPlaceSearch = (type: 'attraction' | 'restaurant', id: string, name: string) => {
+    setEnrichingTarget({ type, id, name });
+    setPlaceSearchQuery(name);
+    setPlaceSearchResults([]);
+    setPlaceDrawerOpen(true);
+  };
+
+  const handleSearchPlacesClick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!placeSearchQuery.trim()) return;
+    setIsSearchingPlaces(true);
+    try {
+      const results = await searchPlaces(placeSearchQuery.trim());
+      setPlaceSearchResults(results);
+    } catch (err) {
+      console.error('Error searching places:', err);
+      alert('Erro ao buscar locais no Google Places.');
+    } finally {
+      setIsSearchingPlaces(false);
+    }
+  };
+
+  const handleEnrichTargetSubmit = async (placeId: string) => {
+    if (!enrichingTarget) return;
+    setIsSaving(true);
+    try {
+      if (enrichingTarget.type === 'attraction') {
+        await enrichBaseAttraction(enrichingTarget.id, placeId);
+      } else {
+        await enrichBaseRestaurant(enrichingTarget.id, placeId);
+      }
+      alert('Local verificado e vinculado com sucesso via Google Places!');
+      setPlaceDrawerOpen(false);
+      fetchTripDetails();
+    } catch (err) {
+      console.error('Error enriching place:', err);
+      alert('Erro ao vincular local do Google Places.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Fetch full details of the base trip
   const fetchTripDetails = useCallback(async () => {
@@ -809,9 +862,24 @@ export default function BaseTripDetailPage() {
                                         ❤️ family
                                       </span>
                                     )}
+                                    {attr.providerPlaceId && (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                                        <Navigation className="w-3 h-3 text-emerald-500" />
+                                        Place ID Verificado
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div className="flex gap-1 shrink-0">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenPlaceSearch('attraction', attr.id, attr.name)}
+                                      className="text-[10px] font-bold text-[#001F5B] border-slate-200 hover:bg-[#001F5B]/5 cursor-pointer h-7 px-2"
+                                      title="Vincular dados de localização reais do Google Places"
+                                    >
+                                      Google Place
+                                    </Button>
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -911,9 +979,24 @@ export default function BaseTripDetailPage() {
                                         🕒 {rest.openingHours.substring(0, 15)}...
                                       </span>
                                     )}
+                                    {rest.providerPlaceId && (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                                        <Navigation className="w-3 h-3 text-emerald-500" />
+                                        Place ID Verificado
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div className="flex gap-1 shrink-0">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenPlaceSearch('restaurant', rest.id, rest.name)}
+                                      className="text-[10px] font-bold text-[#001F5B] border-slate-200 hover:bg-[#001F5B]/5 cursor-pointer h-7 px-2"
+                                      title="Vincular dados de localização reais do Google Places"
+                                    >
+                                      Google Place
+                                    </Button>
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -1504,6 +1587,95 @@ export default function BaseTripDetailPage() {
               </Button>
             </div>
           </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Drawer: Google Places Link Search & Enrichment for Base Attractions / Restaurants */}
+      <Sheet open={placeDrawerOpen} onOpenChange={setPlaceDrawerOpen}>
+        <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-md md:max-w-lg p-0 flex flex-col h-full shadow-2xl z-50">
+          <div className="flex flex-col h-full">
+            <div className="p-6 border-b border-slate-100 bg-[#001F5B] text-white shrink-0">
+              <h2 className="font-extrabold text-base text-white">
+                Vincular Google Place ({enrichingTarget?.type === 'attraction' ? 'Atração' : 'Restaurante'})
+              </h2>
+              <p className="text-white/70 text-xs mt-1">
+                Busque localizações reais no Google Places para verificar coordenadas e endereço oficial para &ldquo;{enrichingTarget?.name}&rdquo;.
+              </p>
+            </div>
+
+            {/* Places search input */}
+            <div className="p-6 border-b border-slate-100 shrink-0">
+              <form onSubmit={handleSearchPlacesClick} className="flex gap-2">
+                <Input
+                  required
+                  type="text"
+                  placeholder="Nome do local (Ex: Museu do Louvre, Paris)..."
+                  value={placeSearchQuery}
+                  onChange={(e) => setPlaceSearchQuery(e.target.value)}
+                  className="h-10 text-xs border-slate-200 rounded-lg flex-1"
+                />
+                <Button
+                  type="submit"
+                  disabled={isSearchingPlaces}
+                  className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-4 h-10 text-xs cursor-pointer flex items-center gap-1"
+                >
+                  {isSearchingPlaces ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                </Button>
+              </form>
+            </div>
+
+            {/* Results listing */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {isSearchingPlaces ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-16 bg-slate-50 rounded-xl" />
+                  <div className="h-16 bg-slate-50 rounded-xl" />
+                  <div className="h-16 bg-slate-50 rounded-xl" />
+                </div>
+              ) : placeSearchResults.length === 0 ? (
+                <p className="text-center text-slate-400 italic text-xs py-8">
+                  Digite e faça uma busca para ver as localizações correspondentes do Google Places.
+                </p>
+              ) : (
+                <div className="space-y-3.5">
+                  {placeSearchResults.map((place) => (
+                    <div
+                      key={place.providerPlaceId}
+                      className="p-4 border border-slate-150 rounded-2xl flex flex-col justify-between min-h-[120px] bg-slate-50/50 hover:bg-white hover:border-[#FF6A00]/50 transition-colors"
+                    >
+                      <div className="space-y-1.5">
+                        <strong className="text-slate-900 text-xs font-bold block leading-tight">
+                          {place.name}
+                        </strong>
+                        <span className="text-[10px] text-slate-400 leading-normal block">
+                          {place.formattedAddress}
+                        </span>
+                        
+                        {place.rating !== undefined && (
+                          <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded w-fit block mt-1">
+                            ★ {place.rating} ({place.userRatingsTotal || 0} avaliações)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-4">
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                          ID: {place.providerPlaceId.substring(0, 12)}...
+                        </span>
+                        <Button
+                          disabled={isSaving}
+                          onClick={() => handleEnrichTargetSubmit(place.providerPlaceId)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-7.5 rounded-lg text-[10px] px-3.5 cursor-pointer flex items-center gap-1 shadow-sm"
+                        >
+                          Vincular Local
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

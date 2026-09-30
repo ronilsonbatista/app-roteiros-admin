@@ -6,7 +6,20 @@ export function TravelPreferences({ preferences }: { preferences: Record<string,
   const travelers = preferences.travelers as { adults?: number; children?: number; elders?: number } | undefined;
   const hours = preferences.activityHours as { startTime?: string; endTime?: string } | undefined;
   const interests = Array.isArray(preferences.interests) ? preferences.interests.map(x => labels[String(x)] || String(x)).join(', ') : '';
+  const rawDestinations = Array.isArray(preferences.destinations) ? preferences.destinations : [];
+  const destinationsStr = rawDestinations.length > 0
+    ? rawDestinations
+        .map((d: any) => {
+          const name = d?.name || d?.city || '';
+          const dates = d?.arrivalDate ? ` (${d.arrivalDate}${d.arrivalTime ? ' ' + d.arrivalTime : ''} - ${d.departureDate || ''}${d.departureTime ? ' ' + d.departureTime : ''})` : '';
+          return `${name}${dates}`;
+        })
+        .filter(Boolean)
+        .join(' → ')
+    : '';
+
   const rows: [string, string][] = [
+    ['Multi-destinos', destinationsStr],
     ['Viajantes', travelers ? `${travelers.adults || 0} adultos, ${travelers.children || 0} crianças, ${travelers.elders || 0} idosos` : ''],
     ['Interesses', interests], ['Orçamento', labels[String(preferences.budgetLevel)] || String(preferences.budgetLevel || '')],
     ['Estilo', labels[String(preferences.travelStyle)] || String(preferences.travelStyle || '')],

@@ -27,7 +27,9 @@ import {
   ItineraryItem,
   ItineraryCategory,
   TripParticipant,
-  PlaceSearchResult
+  PlaceSearchResult,
+  TicketStatus,
+  TransitMode
 } from '@/services/trips.service';
 
 import { Button } from '@/components/ui/button';
@@ -73,7 +75,15 @@ import {
   Car,
   Tag,
   Link2,
-  Navigation
+  Navigation,
+  Hotel,
+  Ticket,
+  Footprints,
+  Bus,
+  Bike,
+  PlaneTakeoff,
+  PlaneLanding,
+  Shuffle
 } from 'lucide-react';
 
 export default function TripDetailPage() {
@@ -462,6 +472,90 @@ export default function TripDetailPage() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(amount);
   };
 
+  const formatDateTimePT = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    try {
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(dateStr));
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const formatDistance = (meters?: number | null) => {
+    if (meters == null) return '';
+    if (meters >= 1000) {
+      return `${(meters / 1000).toFixed(1)} km`;
+    }
+    return `${meters} m`;
+  };
+
+  const renderTransitInfo = (item: ItineraryItem) => {
+    if (item.transitDistanceMeters == null && item.transitDurationMinutes == null) {
+      return null;
+    }
+    const mode = item.transitMode || 'WALKING';
+    let ModeIcon = Footprints;
+    let modeLabel = 'A pé';
+    if (mode === 'DRIVING') {
+      ModeIcon = Car;
+      modeLabel = 'Carro / Táxi';
+    } else if (mode === 'TRANSIT') {
+      ModeIcon = Bus;
+      modeLabel = 'Transporte Público';
+    } else if (mode === 'BICYCLING') {
+      ModeIcon = Bike;
+      modeLabel = 'Bicicleta';
+    }
+
+    return (
+      <div className="flex items-center gap-2 py-1 px-2.5 my-1.5 rounded-lg bg-slate-100/80 border border-slate-200/70 text-[10px] text-slate-600 w-fit">
+        <ModeIcon className="w-3.5 h-3.5 text-[#001F5B]" />
+        <span className="font-semibold">{modeLabel}</span>
+        {item.transitDurationMinutes != null && (
+          <span className="font-bold text-slate-800">• {item.transitDurationMinutes} min</span>
+        )}
+        {item.transitDistanceMeters != null && (
+          <span className="text-slate-500">({formatDistance(item.transitDistanceMeters)})</span>
+        )}
+      </div>
+    );
+  };
+
+  const renderTicketBadge = (ticketStatus?: TicketStatus) => {
+    if (!ticketStatus) return null;
+    if (ticketStatus === 'FREE') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+          <Ticket className="w-3 h-3 text-emerald-600" />
+          Ingresso Gratuito
+        </span>
+      );
+    }
+    if (ticketStatus === 'TICKET_REQUIRED') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+          <Ticket className="w-3 h-3 text-amber-600" />
+          Ingresso Obrigatório
+        </span>
+      );
+    }
+    if (ticketStatus === 'UNKNOWN') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+          <Ticket className="w-3 h-3 text-slate-400" />
+          Ingresso a Confirmar
+        </span>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -530,6 +624,109 @@ export default function TripDetailPage() {
         </div>
       )}
 
+      {trip && (
+        <>
+          {/* Trip Key Metrics: Arrival, Departure, Swaps Quota, Main Destination */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Chegada */}
+            <Card className="border-slate-200 bg-white p-3.5 rounded-xl shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#001F5B] flex items-center justify-center shrink-0">
+                  <PlaneLanding className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Chegada</span>
+                  <span className="text-xs font-bold text-slate-800 truncate block">
+                    {trip.arrivalDateTime
+                      ? formatDateTimePT(trip.arrivalDateTime)
+                      : trip.startDate
+                      ? formatDatePT(trip.startDate)
+                      : 'Data não definida'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Saída */}
+            <Card className="border-slate-200 bg-white p-3.5 rounded-xl shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#FF6A00] flex items-center justify-center shrink-0">
+                  <PlaneTakeoff className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Saída</span>
+                  <span className="text-xs font-bold text-slate-800 truncate block">
+                    {trip.departureDateTime
+                      ? formatDateTimePT(trip.departureDateTime)
+                      : trip.endDate
+                      ? formatDatePT(trip.endDate)
+                      : 'Data não definida'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Cota de Trocas */}
+            <Card className="border-slate-200 bg-white p-3.5 rounded-xl shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
+                  <Shuffle className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Cota de Trocas</span>
+                  <span className="text-xs font-bold text-slate-800 block">
+                    {trip.usedSwapsCount ?? 0} de {trip.allowedSwapsCount ?? 4} utilizadas
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Status / Destino Principal */}
+            <Card className="border-slate-200 bg-white p-3.5 rounded-xl shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Destino Principal</span>
+                  <span className="text-xs font-bold text-slate-800 truncate block">
+                    {trip.destination || 'N/D'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Multi-destinos banner if present in preferences */}
+          {Array.isArray(trip.preferences?.destinations) && trip.preferences.destinations.length > 0 && (
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#001F5B] shrink-0" />
+                <span className="font-extrabold text-[#001F5B] uppercase text-[10px] tracking-wider">
+                  Rota Multi-Destinos ({trip.preferences.destinations.length} cidades):
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {trip.preferences.destinations.map((dest: any, idx: number) => (
+                  <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200/80 font-semibold text-slate-800 text-[11px] shadow-2xs">
+                    <MapPin className="w-3 h-3 text-[#FF6A00]" />
+                    <span>{dest.name || dest.city}</span>
+                    {dest.arrivalDate && (
+                      <span className="text-[9px] text-slate-400 font-normal">
+                        ({formatDatePT(dest.arrivalDate)}{dest.arrivalTime ? ` ${dest.arrivalTime}` : ''} → {dest.departureDate ? formatDatePT(dest.departureDate) : ''}{dest.departureTime ? ` ${dest.departureTime}` : ''})
+                      </span>
+                    )}
+                    {idx < (trip.preferences?.destinations?.length ?? 0) - 1 && (
+                      <ChevronRight className="w-3 h-3 text-slate-300 ml-1" />
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Main Split Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-pulse">
@@ -542,6 +739,64 @@ export default function TripDetailPage() {
           {/* Left Column: Owner & Participants & Collapsible Preferences (4 cols) */}
           <div className="md:col-span-4 space-y-6">
             
+            {/* Bloco de Hospedagem */}
+            <Card className="border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
+              <div className="p-4 border-b border-slate-100 bg-[#001F5B]/5 flex items-center justify-between">
+                <h3 className="font-extrabold text-[#001F5B] text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Hotel className="w-4 h-4 text-[#001F5B]" />
+                  Hospedagem
+                </h3>
+                {trip.accommodation && (
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">
+                    Confirmada
+                  </span>
+                )}
+              </div>
+              <CardContent className="p-4">
+                {trip.accommodation ? (
+                  <div className="space-y-2 text-xs">
+                    <div className="font-bold text-slate-900 text-sm">{trip.accommodation.name}</div>
+                    {trip.accommodation.address && (
+                      <p className="text-[11px] text-slate-500 flex items-start gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                        <span>{trip.accommodation.address}{trip.accommodation.neighborhood ? ` - ${trip.accommodation.neighborhood}` : ''}</span>
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px]">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Check-in</span>
+                        <span className="font-semibold text-slate-800">
+                          {trip.accommodation.checkInDateTime
+                            ? formatDateTimePT(trip.accommodation.checkInDateTime)
+                            : trip.accommodation.checkInDate
+                            ? formatDatePT(trip.accommodation.checkInDate)
+                            : 'Não informado'}
+                          {trip.accommodation.checkInTime ? ` às ${trip.accommodation.checkInTime}` : ''}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Check-out</span>
+                        <span className="font-semibold text-slate-800">
+                          {trip.accommodation.checkOutDateTime
+                            ? formatDateTimePT(trip.accommodation.checkOutDateTime)
+                            : trip.accommodation.checkOutDate
+                            ? formatDatePT(trip.accommodation.checkOutDate)
+                            : 'Não informado'}
+                          {trip.accommodation.checkOutTime ? ` às ${trip.accommodation.checkOutTime}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-slate-400 text-xs">
+                    <Hotel className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                    <p className="font-medium text-slate-600">Sem hospedagem</p>
+                    <p className="text-[10px] text-slate-400">Nenhum hotel ou acomodação vinculada.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Owner Details */}
             <Card className="border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
               <div className="p-4 border-b border-slate-100 bg-[#001F5B]/5">
@@ -795,7 +1050,12 @@ export default function TripDetailPage() {
                                           {item.period}
                                         </span>
                                       )}
+
+                                      {renderTicketBadge(item.ticketStatus)}
                                     </div>
+
+                                    {/* Transit connector when available from backend */}
+                                    {renderTransitInfo(item)}
 
                                     <h6 className="font-bold text-slate-900 text-xs leading-snug">
                                       {item.title}

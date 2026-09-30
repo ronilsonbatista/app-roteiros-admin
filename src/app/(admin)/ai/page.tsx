@@ -38,7 +38,8 @@ import {
   ChevronLeft,
   Eye,
   Coins,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 
 export default function AiAdminPage() {
@@ -314,6 +315,11 @@ export default function AiAdminPage() {
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-900">{r.provider || 'OpenAI'}</div>
                       <div className="text-[11px] text-slate-500 font-mono">{r.model || 'gpt-4o-mini'}</div>
+                      {r.baseTripId && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded mt-0.5" title={`Roteiro Base ID: ${r.baseTripId}`}>
+                          Curadoria: {r.baseTrip?.title || `${r.baseTripId.substring(0, 8)}...`}
+                        </span>
+                      )}
                     </td>
 
                     {/* User */}
@@ -426,6 +432,20 @@ export default function AiAdminPage() {
                   <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">Duração</span>
                   <span className="font-mono text-slate-900">{(selectedRequest as any).durationMs ? `${((selectedRequest as any).durationMs / 1000).toFixed(2)}s` : '-'}</span>
                 </div>
+                {selectedRequest.baseTripId && (
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">Roteiro Base Curado</span>
+                    <Link
+                      href={`/base-trips/${selectedRequest.baseTripId}`}
+                      className="font-mono text-blue-600 hover:underline font-semibold flex items-center gap-1 text-[11px]"
+                    >
+                      {selectedRequest.baseTrip?.title
+                        ? `${selectedRequest.baseTrip.title} (${selectedRequest.baseTripId.substring(0, 8)}...)`
+                        : `${selectedRequest.baseTripId.substring(0, 8)}...`}
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <Tabs value={drawerTab} onValueChange={(v) => setDrawerTab(v as any)} className="space-y-3">
