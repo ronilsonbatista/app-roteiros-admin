@@ -58,7 +58,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     {
       title: 'CLIENTES & CRM',
       items: [
-        { name: 'Usuários do App', href: '/users', icon: Users },
+        { name: 'Viajantes', href: '/users', icon: Users },
         { name: 'Clientes', href: '/customers', icon: Users },
         { name: 'Leads & Funil', href: '/leads', icon: Funnel },
       ],

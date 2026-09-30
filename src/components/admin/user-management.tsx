@@ -152,12 +152,12 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        category={role === 'ADMIN' ? 'CONFIGURAÇÕES' : 'APLICATIVO'}
-        title={role === 'ADMIN' ? 'Administradores' : 'Usuários do aplicativo'}
-        subtitle={role === 'ADMIN' ? 'Equipe com acesso ao painel de gestão e controles de acesso.' : 'Todos os viajantes cadastrados no aplicativo, seus perfis e viagens.'}
+        category={role === 'ADMIN' ? 'CONFIGURAÇÕES' : 'CLIENTES & CRM'}
+        title={role === 'ADMIN' ? 'Administradores' : 'Viajantes'}
+        subtitle={role === 'ADMIN' ? 'Equipe com acesso ao painel de gestão e controles de acesso.' : 'Todos os viajantes cadastrados na plataforma, seus perfis e viagens.'}
         breadcrumbs={[
-          { label: role === 'ADMIN' ? 'Configurações' : 'Aplicativo' },
-          { label: role === 'ADMIN' ? 'Administradores' : 'Usuários' }
+          { label: role === 'ADMIN' ? 'Configurações' : 'Clientes & CRM' },
+          { label: role === 'ADMIN' ? 'Administradores' : 'Viajantes' }
         ]}
         actions={
           <div className="flex items-center gap-2">
@@ -316,9 +316,13 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg bg-white border-l border-slate-200 p-6 space-y-4 overflow-y-auto text-xs">
           <SheetHeader className="border-b border-slate-100 pb-3">
-            <SheetTitle className="text-base font-bold text-slate-900">Perfil do Usuário</SheetTitle>
+            <SheetTitle className="text-base font-bold text-slate-900">
+              {selectedUser?.role === 'ADMIN' ? 'Perfil do Administrador' : 'Perfil do Viajante'}
+            </SheetTitle>
             <SheetDescription className="text-xs text-slate-500">
-              Informações de acesso, viagens e preferências.
+              {selectedUser?.role === 'ADMIN'
+                ? 'Informações da conta administrativa e status de acesso ao painel.'
+                : 'Informações de acesso, viagens e preferências.'}
             </SheetDescription>
           </SheetHeader>
 
@@ -344,44 +348,53 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
                 </div>
               </div>
 
-              <Tabs defaultValue="trips" className="space-y-3">
-                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                  <TabsTrigger value="trips" className="text-xs font-semibold px-3 py-1">
-                    Viagens ({selectedUserTrips.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="profile" className="text-xs font-semibold px-3 py-1">
-                    Perfil de Viagem
-                  </TabsTrigger>
-                </TabsList>
+              {selectedUser.role === 'ADMIN' ? (
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/60 text-slate-600 space-y-1.5">
+                  <p className="font-semibold text-slate-900">Acesso Administrativo</p>
+                  <p className="text-xs text-slate-500">
+                    Este usuário é um administrador do sistema. Contas administrativas possuem acesso completo ao painel de gestão e não gerenciam viagens de lazer pessoais como viajante do app.
+                  </p>
+                </div>
+              ) : (
+                <Tabs defaultValue="trips" className="space-y-3">
+                  <TabsList className="bg-slate-100 p-1 rounded-lg">
+                    <TabsTrigger value="trips" className="text-xs font-semibold px-3 py-1">
+                      Viagens ({selectedUserTrips.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="profile" className="text-xs font-semibold px-3 py-1">
+                      Perfil de Viagem
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="trips">
-                  {selectedUserTrips.length === 0 ? (
-                    <p className="text-slate-400 py-4 text-center">Nenhuma viagem criada por este usuário.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {selectedUserTrips.map((t) => (
-                        <div key={t.id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/60 flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-slate-900">{t.destination}</p>
-                            <p className="text-[11px] text-slate-500">{t.title || 'Roteiro'}</p>
+                  <TabsContent value="trips">
+                    {selectedUserTrips.length === 0 ? (
+                      <p className="text-slate-400 py-4 text-center">Nenhuma viagem criada por este usuário.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {selectedUserTrips.map((t) => (
+                          <div key={t.id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/60 flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-slate-900">{t.destination}</p>
+                              <p className="text-[11px] text-slate-500">{t.title || 'Roteiro'}</p>
+                            </div>
+                            <StatusBadge status={t.status} />
                           </div>
-                          <StatusBadge status={t.status} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="profile">
-                  {selectedUserTravelProfile ? (
-                    <pre className="p-3 bg-slate-900 text-emerald-400 rounded-lg font-mono text-[11px] whitespace-pre-wrap">
-                      {JSON.stringify(selectedUserTravelProfile, null, 2)}
-                    </pre>
-                  ) : (
-                    <p className="text-slate-400 py-4 text-center">Nenhum perfil de viagem preenchido.</p>
-                  )}
-                </TabsContent>
-              </Tabs>
+                  <TabsContent value="profile">
+                    {selectedUserTravelProfile ? (
+                      <pre className="p-3 bg-slate-900 text-emerald-400 rounded-lg font-mono text-[11px] whitespace-pre-wrap">
+                        {JSON.stringify(selectedUserTravelProfile, null, 2)}
+                      </pre>
+                    ) : (
+                      <p className="text-slate-400 py-4 text-center">Nenhum perfil de viagem preenchido.</p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
             </div>
           )}
         </SheetContent>

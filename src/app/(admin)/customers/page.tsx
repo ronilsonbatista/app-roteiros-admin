@@ -82,7 +82,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2" aria-label="Fontes de clientes">
-        <Button variant={source === 'APP' ? 'default' : 'outline'} onClick={() => setSource('APP')}>Usuários do app</Button>
+        <Button variant={source === 'APP' ? 'default' : 'outline'} onClick={() => setSource('APP')}>Compradores no App</Button>
         <Button variant={source === 'CRM' ? 'default' : 'outline'} onClick={() => setSource('CRM')}>Contatos comerciais</Button>
       </div>
       {source === 'CRM' ? <CommercialContacts /> : <>

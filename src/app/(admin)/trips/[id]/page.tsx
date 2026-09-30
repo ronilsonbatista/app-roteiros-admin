@@ -521,7 +521,7 @@ export default function TripDetailPage() {
         }
       />
 
-      {trip && <ItineraryAiActions id={trip.id} kind="trips" empty={!trip.days?.length} onSaved={fetchTripDetails} />}
+      {trip && <ItineraryAiActions id={trip.id} kind="trips" empty={!trip.days?.length} draft={trip.status === 'DRAFT'} onSaved={fetchTripDetails} />}
 
       {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl">

@@ -171,6 +171,17 @@ export default function BaseTripsListPage() {
       return;
     }
 
+    if (formStatus === 'PUBLISHED') {
+      const daysCount = editingTrip?.days?.length ?? editingTrip?._count?.days ?? 0;
+      if (daysCount === 0) {
+        alert('Não é possível publicar um Roteiro Base sem nenhum dia cadastrado. Adicione os dias e atrações antes de publicar.');
+        return;
+      }
+      if (!window.confirm('Deseja realmente definir este Roteiro Base como PUBLICADO? Ele ficará visível e elegível para alimentar gerações de roteiro.')) {
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       const tagsArray = formTags

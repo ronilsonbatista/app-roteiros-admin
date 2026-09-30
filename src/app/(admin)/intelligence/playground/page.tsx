@@ -29,12 +29,12 @@ import { StatusBadge } from '@/components/admin/status-badge';
 import { runPlaygroundSimulation, PlaygroundSimulateResult } from '@/services/ai-intelligence.service';
 
 export default function AiPlaygroundPage() {
-  const [destination, setDestination] = useState('Tóquio');
+  const [destination, setDestination] = useState('');
   const [numberOfDays, setNumberOfDays] = useState(3);
-  const [travelStyle, setTravelStyle] = useState('Cultura & Gastronomia');
-  const [budgetLevel, setBudgetLevel] = useState('HIGH');
-  const [interestsInput, setInterestsInput] = useState('Gastronomia tradicional, Templos históricos, Bairros modernos');
-  const [additionalPrompt, setAdditionalPrompt] = useState('Priorize experiências que evitem filas excessivas e ofereçam imersão cultural autêntica.');
+  const [travelStyle, setTravelStyle] = useState('');
+  const [budgetLevel, setBudgetLevel] = useState('');
+  const [interestsInput, setInterestsInput] = useState('');
+  const [additionalPrompt, setAdditionalPrompt] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [simulationResult, setSimulationResult] = useState<PlaygroundSimulateResult | null>(null);
@@ -57,9 +57,9 @@ export default function AiPlaygroundPage() {
       const res = await runPlaygroundSimulation({
         destination: destination.trim(),
         numberOfDays: Number(numberOfDays),
-        travelStyle,
-        budgetLevel,
-        interests,
+        travelStyle: travelStyle || undefined,
+        budgetLevel: budgetLevel || undefined,
+        interests: interests.length > 0 ? interests : undefined,
         additionalPrompt: additionalPrompt.trim() || undefined,
       });
 
@@ -77,7 +77,7 @@ export default function AiPlaygroundPage() {
       <PageHeader
         category="INTELIGÊNCIA ARTIFICIAL"
         title="AI Evaluation Playground & Simulação"
-        subtitle="Ambiente de testes e avaliação profissional para validar respostas, consumo de tokens e comportamento do modelo GPT em memória"
+        subtitle="Ambiente de testes efêmeros e avaliação em memória. As simulações do Playground NÃO alteram nem representam o catálogo oficial de Roteiros Base (BaseTrip) publicados."
         breadcrumbs={[
           { label: 'Inteligência', href: '/intelligence' },
           { label: 'Playground IA' }
@@ -95,15 +95,15 @@ export default function AiPlaygroundPage() {
       />
 
       {/* Safety Isolation Notice */}
-      <div className="p-3 bg.emerald-50 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+      <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-md bg-emerald-600 text-white shrink-0">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold">Ambiente Totalmente Isolado em Memória: </span>
+            <span className="font-bold">Simulação Efêmera em Memória: </span>
             <span className="text-emerald-800">
-              Nenhuma viagem real, usuário, compra ou entitlement é persistido no banco de dados durante estas simulações.
+              Nenhuma viagem real, usuário, compra ou Roteiro Base é persistido no banco de dados. Os resultados são efêmeros e servem exclusivamente para avaliar custos e prompts.
             </span>
           </div>
         </div>
@@ -152,8 +152,9 @@ export default function AiPlaygroundPage() {
                   <select
                     value={budgetLevel}
                     onChange={(e) => setBudgetLevel(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
                   >
+                    <option value="">Selecione (opcional)...</option>
                     <option value="LOW">Econômico (LOW)</option>
                     <option value="MEDIUM">Moderado (MEDIUM)</option>
                     <option value="HIGH">Luxo / Exclusivo (HIGH)</option>
@@ -166,8 +167,9 @@ export default function AiPlaygroundPage() {
                 <select
                   value={travelStyle}
                   onChange={(e) => setTravelStyle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
                 >
+                  <option value="">Selecione (opcional)...</option>
                   <option value="Cultura & Gastronomia">Cultura & Gastronomia</option>
                   <option value="Aventura & Natureza">Aventura & Natureza</option>
                   <option value="Romântico & Relax">Romântico & Relax</option>
@@ -181,6 +183,7 @@ export default function AiPlaygroundPage() {
                   type="text"
                   value={interestsInput}
                   onChange={(e) => setInterestsInput(e.target.value)}
+                  placeholder="Ex: gastronomia, templos, arte, compras..."
                   className="text-xs h-9 bg-slate-50 font-mono"
                 />
               </div>
@@ -191,6 +194,7 @@ export default function AiPlaygroundPage() {
                   rows={3}
                   value={additionalPrompt}
                   onChange={(e) => setAdditionalPrompt(e.target.value)}
+                  placeholder="Instruções ou restrições opcionais..."
                   className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
