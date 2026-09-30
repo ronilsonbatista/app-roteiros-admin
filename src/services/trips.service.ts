@@ -426,3 +426,171 @@ export async function lockPremium(tripId: string): Promise<Trip> {
   const response = await api.patch(`/admin/trips/${tripId}/lock-premium`);
   return response.data?.data || response.data;
 }
+
+export interface ItemAlternative {
+  id?: string;
+  source: 'BASE_TRIP' | 'GOOGLE_PLACES';
+  title: string;
+  description?: string;
+  category?: ItineraryCategory;
+  location?: string;
+  providerPlaceId?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  cost?: number;
+  currency?: string;
+  duration?: number;
+  ticketStatus?: TicketStatus;
+  photoUrl?: string;
+}
+
+export interface AlternativesResponse {
+  itemId: string;
+  quota: {
+    allowedSwapsCount: number;
+    usedSwapsCount: number;
+    remainingSwaps: number;
+  };
+  alternatives: ItemAlternative[];
+}
+
+export interface MealRecommendation {
+  source: 'BASE_TRIP' | 'GOOGLE_PLACES';
+  title: string;
+  description?: string;
+  location?: string;
+  providerPlaceId?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  userRatingsTotal?: number;
+  priceLevel?: string;
+  cost?: number;
+  currency?: string;
+  googleMapsUri?: string;
+  websiteUri?: string;
+  period?: string;
+}
+
+export interface MealRecommendationsResponse {
+  dayId: string;
+  period?: string;
+  recommendations: MealRecommendation[];
+}
+
+export interface VerifiedItemDetails extends ItineraryItem {
+  verifiedDetails?: {
+    name?: string;
+    formattedAddress?: string;
+    rating?: number;
+    userRatingsTotal?: number;
+    internationalPhoneNumber?: string;
+    websiteUri?: string;
+    googleMapsUri?: string;
+    types?: string[];
+  } | null;
+}
+
+/**
+ * Get Trip Accommodation
+ */
+export async function getTripAccommodation(tripId: string): Promise<TripAccommodation | null> {
+  const response = await api.get(`/trips/${tripId}/accommodation`);
+  return response.data?.data || response.data || null;
+}
+
+/**
+ * Upsert Trip Accommodation
+ */
+export async function upsertTripAccommodation(tripId: string, payload: {
+  name: string;
+  address?: string;
+  neighborhood?: string;
+  zipCode?: string;
+  latitude?: number;
+  longitude?: number;
+  providerPlaceId?: string;
+  checkInDateTime?: string;
+  checkOutDateTime?: string;
+  checkInDate?: string;
+  checkInTime?: string;
+  checkOutDate?: string;
+  checkOutTime?: string;
+}): Promise<TripAccommodation> {
+  const response = await api.post(`/trips/${tripId}/accommodation`, payload);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Delete Trip Accommodation
+ */
+export async function deleteTripAccommodation(tripId: string): Promise<{ success: boolean }> {
+  const response = await api.delete(`/trips/${tripId}/accommodation`);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Get item alternatives for substitution with swap quota
+ */
+export async function getItemAlternatives(itemId: string): Promise<AlternativesResponse> {
+  const response = await api.get(`/itinerary-items/${itemId}/alternatives`);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Substitute an itinerary item using quota
+ */
+export async function substituteItineraryItem(itemId: string, payload: {
+  title: string;
+  description?: string;
+  category?: ItineraryCategory;
+  location?: string;
+  providerPlaceId?: string;
+  latitude?: number;
+  longitude?: number;
+  cost?: number;
+  currency?: string;
+  duration?: number;
+  ticketStatus?: TicketStatus;
+}): Promise<{ item: ItineraryItem; remainingSwaps: number }> {
+  const response = await api.post(`/itinerary-items/${itemId}/substitute`, payload);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Get meal recommendations for a day and period
+ */
+export async function getDayMealRecommendations(dayId: string, period?: string): Promise<MealRecommendationsResponse> {
+  const response = await api.get(`/trip-days/${dayId}/meal-recommendations`, {
+    params: period ? { period } : {}
+  });
+  return response.data?.data || response.data;
+}
+
+/**
+ * Pin meal recommendation into an itinerary item
+ */
+export async function pinMealToItem(itemId: string, payload: {
+  title: string;
+  description?: string;
+  location?: string;
+  providerPlaceId?: string;
+  latitude?: number;
+  longitude?: number;
+  cost?: number;
+  currency?: string;
+  notes?: string;
+  googleMapsLink?: string;
+}): Promise<ItineraryItem> {
+  const response = await api.patch(`/itinerary-items/${itemId}/pin-meal`, payload);
+  return response.data?.data || response.data;
+}
+
+/**
+ * Get verified item details
+ */
+export async function getItineraryItemDetails(itemId: string): Promise<VerifiedItemDetails> {
+  const response = await api.get(`/itinerary-items/${itemId}`);
+  return response.data?.data || response.data;
+}
