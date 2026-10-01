@@ -22,7 +22,8 @@ import {
   ServerCog,
   UserCheck,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,12 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       title: 'COMERCIAL',
       items: [
         { name: 'Compras & Cupons', href: '/billing', icon: CreditCard },
+      ],
+    },
+    {
+      title: 'FINANCEIRO',
+      items: [
+        { name: 'Gastos da Empresa', href: '/company-expenses', icon: Receipt },
       ],
     },
     {
