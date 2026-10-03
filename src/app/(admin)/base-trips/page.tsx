@@ -251,11 +251,11 @@ export default function BaseTripsListPage() {
       {/* Page Header */}
       <PageHeader
         category="VIAGENS & ROTEIROS"
-        title="Catálogo de Roteiros Base"
-        subtitle="Roteiros pré-curados que servem como template oficial de destinos no aplicativo 2GO"
+        title="Biblioteca de Destinos & Curadoria"
+        subtitle="Destinos pré-curados, sessão escrita e biblioteca oficial de atrações e restaurantes para a IA 2GO"
         breadcrumbs={[
           { label: 'Viagens', href: '/trips' },
-          { label: 'Roteiros Base' }
+          { label: 'Biblioteca de Destinos' }
         ]}
         actions={
           <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function BaseTripsListPage() {
               className="bg-[#001F5B] hover:bg-[#FF6A00] text-white text-xs font-semibold h-9 shadow-2xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-1.5" />
-              Novo Roteiro Base
+              Novo Destino
             </Button>
           </div>
         }

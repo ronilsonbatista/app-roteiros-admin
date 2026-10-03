@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   getBaseTripDetails,
+  updateBaseTrip,
   createBaseTripDay,
   updateBaseTripDay,
   deleteBaseTripDay,
@@ -86,6 +87,19 @@ export default function BaseTripDetailPage() {
   const [dayDrawerOpen, setDayDrawerOpen] = useState(false);
   const [attractionDrawerOpen, setAttractionDrawerOpen] = useState(false);
   const [restaurantDrawerOpen, setRestaurantDrawerOpen] = useState(false);
+  const [destinationDrawerOpen, setDestinationDrawerOpen] = useState(false);
+
+  // Form states for Destination / Written Session
+  const [destTitle, setDestTitle] = useState('');
+  const [destDestination, setDestDestination] = useState('');
+  const [destCountry, setDestCountry] = useState('');
+  const [destCity, setDestCity] = useState('');
+  const [destRegion, setDestRegion] = useState('');
+  const [destProfile, setDestProfile] = useState('');
+  const [destShortDescription, setDestShortDescription] = useState('');
+  const [destFullDescription, setDestFullDescription] = useState('');
+  const [destStatus, setDestStatus] = useState<BaseTripStatus>('DRAFT');
+  const [destVisibility, setDestVisibility] = useState<BaseTripVisibility>('PUBLIC');
 
   // Target IDs for nested creations
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
@@ -211,6 +225,55 @@ export default function BaseTripDetailPage() {
   useEffect(() => {
     fetchTripDetails();
   }, [fetchTripDetails]);
+
+  // Open Edit Destination Drawer
+  const handleOpenEditDestination = () => {
+    if (!trip) return;
+    setDestTitle(trip.title || '');
+    setDestDestination(trip.destination || '');
+    setDestCountry(trip.country || '');
+    setDestCity(trip.city || '');
+    setDestRegion(trip.region || '');
+    setDestProfile(trip.profile || '');
+    setDestShortDescription(trip.shortDescription || '');
+    setDestFullDescription(trip.fullDescription || '');
+    setDestStatus(trip.status || 'DRAFT');
+    setDestVisibility(trip.visibility || 'PUBLIC');
+    setDestinationDrawerOpen(true);
+  };
+
+  // Save Destination (Title, Written Session, Status, etc.)
+  const handleSaveDestination = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!destTitle.trim() || !destDestination.trim()) {
+      alert('Título e Destino são obrigatórios.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateBaseTrip(tripId, {
+        title: destTitle.trim(),
+        destination: destDestination.trim(),
+        country: destCountry.trim() || undefined,
+        city: destCity.trim() || undefined,
+        region: destRegion.trim() || undefined,
+        profile: destProfile.trim() || undefined,
+        shortDescription: destShortDescription.trim() || undefined,
+        fullDescription: destFullDescription.trim() || undefined,
+        status: destStatus,
+        visibility: destVisibility,
+      });
+      alert('Destino e Sessão Escrita atualizados com sucesso!');
+      setDestinationDrawerOpen(false);
+      fetchTripDetails();
+    } catch (err: any) {
+      console.error('Error updating destination:', err);
+      alert(err.response?.data?.message || 'Erro ao atualizar dados do destino.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Open Day Form
   const handleOpenDay = (item: BaseTripDay | null = null) => {
@@ -341,6 +404,10 @@ export default function BaseTripDetailPage() {
       alert('Nome da atração é obrigatório.');
       return;
     }
+    if (!attractionAddress.trim()) {
+      alert('Endereço da atração é obrigatório na curadoria 2GO.');
+      return;
+    }
 
     setIsSaving(true);
     const payload = {
@@ -443,6 +510,10 @@ export default function BaseTripDetailPage() {
       alert('Nome do restaurante é obrigatório.');
       return;
     }
+    if (!restaurantAddress.trim()) {
+      alert('Endereço do restaurante é obrigatório na curadoria 2GO.');
+      return;
+    }
 
     setIsSaving(true);
     const payload = {
@@ -535,6 +606,15 @@ export default function BaseTripDetailPage() {
           </Button>
 
           <Button
+            variant="outline"
+            onClick={handleOpenEditDestination}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold cursor-pointer rounded-xl h-11 px-4 shadow-sm flex items-center gap-2 bg-white"
+          >
+            <Edit className="w-4 h-4 text-[#001F5B]" />
+            Editar Destino / Sessão Escrita
+          </Button>
+
+          <Button
             onClick={() => handleOpenDay()}
             className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-xl h-11 px-5 shadow-md flex items-center gap-2 cursor-pointer transition-colors duration-200"
           >
@@ -565,11 +645,20 @@ export default function BaseTripDetailPage() {
           {/* Left panel: BaseTrip general specifications (4 cols) */}
           <div className="md:col-span-4 space-y-6">
             <Card className="border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-[#001F5B]/5">
+              <div className="p-4 border-b border-slate-100 bg-[#001F5B]/5 flex items-center justify-between">
                 <h3 className="font-extrabold text-[#001F5B] text-xs uppercase tracking-wider flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Especificações Gerais
                 </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleOpenEditDestination}
+                  className="h-7 px-2 text-xs font-semibold text-[#001F5B] hover:bg-white/80 cursor-pointer"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Editar
+                </Button>
               </div>
               
               <CardContent className="p-5 space-y-4 text-xs text-slate-700">
@@ -1333,8 +1422,11 @@ export default function BaseTripDetailPage() {
 
               {/* Addresses */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Endereço</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Endereço Completo <span className="text-red-500 font-bold">* (obrigatório)</span>
+                </label>
                 <Input
+                  required
                   type="text"
                   placeholder="Ex: Rue de Rivoli, 75001 Paris"
                   value={attractionAddress}
@@ -1524,8 +1616,11 @@ export default function BaseTripDetailPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Endereço</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Endereço Completo <span className="text-red-500 font-bold">* (obrigatório)</span>
+                </label>
                 <Input
+                  required
                   type="text"
                   placeholder="Ex: 7 Rue du Faubourg Montmartre, 75009"
                   value={restaurantAddress}
@@ -1676,6 +1771,192 @@ export default function BaseTripDetailPage() {
               )}
             </div>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Drawer: Edit Destination & Written Session */}
+      <Sheet open={destinationDrawerOpen} onOpenChange={setDestinationDrawerOpen}>
+        <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-lg md:max-w-xl p-0 flex flex-col h-full shadow-2xl z-50">
+          <form onSubmit={handleSaveDestination} className="flex flex-col h-full">
+            <div className="p-6 border-b border-slate-100 bg-[#001F5B] text-white shrink-0">
+              <h2 className="font-extrabold text-base text-white flex items-center gap-2">
+                <Compass className="w-5 h-5 text-[#FF6A00]" />
+                Editar Destino & Sessão Escrita
+              </h2>
+              <p className="text-white/70 text-xs mt-1">
+                Configure a identidade do destino e a curadoria escrita que alimenta a inteligência da IA 2GO.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Título do Roteiro / Destino *
+                  </label>
+                  <Input
+                    required
+                    type="text"
+                    placeholder="Ex: Paris Essencial & Charme"
+                    value={destTitle}
+                    onChange={(e) => setDestTitle(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Destino (Cidade / Região) *
+                  </label>
+                  <Input
+                    required
+                    type="text"
+                    placeholder="Ex: Paris"
+                    value={destDestination}
+                    onChange={(e) => setDestDestination(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    País
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: França"
+                    value={destCountry}
+                    onChange={(e) => setDestCountry(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Cidade
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: Paris"
+                    value={destCity}
+                    onChange={(e) => setDestCity(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Região
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: Île-de-France"
+                    value={destRegion}
+                    onChange={(e) => setDestRegion(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Perfil Recomendado
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: Cultural, Gastronômico, Casal"
+                    value={destProfile}
+                    onChange={(e) => setDestProfile(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Status de Publicação
+                  </label>
+                  <select
+                    value={destStatus}
+                    onChange={(e) => setDestStatus(e.target.value as BaseTripStatus)}
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden"
+                  >
+                    <option value="DRAFT">Rascunho (DRAFT)</option>
+                    <option value="PUBLISHED">Publicado (PUBLISHED - Ativo na IA)</option>
+                    <option value="ARCHIVED">Arquivado (ARCHIVED)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Visibilidade
+                  </label>
+                  <select
+                    value={destVisibility}
+                    onChange={(e) => setDestVisibility(e.target.value as BaseTripVisibility)}
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden"
+                  >
+                    <option value="PUBLIC">Público (PUBLIC)</option>
+                    <option value="INTERNAL">Interno / Equipe (INTERNAL)</option>
+                    <option value="PRIVATE">Privado (PRIVATE)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Descrição Curta (Resumo do Destino)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: A Cidade Luz oferece um equilíbrio perfeito entre arte lendária, arquitetura imponente e alta gastronomia de bistrôs."
+                  value={destShortDescription}
+                  onChange={(e) => setDestShortDescription(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-[#001F5B]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-[#001F5B] uppercase tracking-wider block">
+                    Sessão Escrita da Curadoria 2GO (Injetada no Prompt da IA)
+                  </label>
+                  <span className="text-[9px] font-bold text-[#FF6A00] bg-[#FF6A00]/10 px-1.5 py-0.5 rounded">
+                    Prioridade Máxima IA
+                  </span>
+                </div>
+                <textarea
+                  rows={8}
+                  placeholder="Escreva a curadoria especializada 2GO para este destino: atmosfera dos bairros, recomendações de ouro, ritmos matinais e noturnos, restaurantes imperdíveis, segredos locais e o que evitar. A IA utilizará este texto rigorosamente como base de conhecimento autêntica."
+                  value={destFullDescription}
+                  onChange={(e) => setDestFullDescription(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-[#001F5B]"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDestinationDrawerOpen(false)}
+                className="border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold cursor-pointer rounded-lg px-4 h-10 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-5 h-10 text-xs cursor-pointer shadow-sm"
+              >
+                {isSaving ? 'Salvando...' : 'Salvar Destino & Curadoria'}
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

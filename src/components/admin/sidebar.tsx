@@ -69,7 +69,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
       items: [
         { name: 'Viagens no App', href: '/trips', icon: Map },
         { name: 'Editor de Roteiros', href: '/itinerary-editor', icon: FileText },
-        { name: 'Roteiros Base', href: '/base-trips', icon: Compass },
+        { name: 'Biblioteca de Destinos', href: '/base-trips', icon: Compass },
       ],
     },
     {
