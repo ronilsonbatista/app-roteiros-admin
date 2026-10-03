@@ -26,6 +26,7 @@ export interface ProviderHealthResponse {
       status: string;
       provider: string;
       bucketConfigured: boolean;
+      configured?: boolean;
     };
   };
   securityFlags: {
@@ -67,8 +68,16 @@ export interface AuditLogsResponse {
 }
 
 export async function getProviderHealth(): Promise<ProviderHealthResponse> {
-  const res = await api.get('/admin/system/providers');
-  return res.data?.data || res.data;
+  try {
+    const res = await api.get('/admin/system/provider-health');
+    return res.data?.data || res.data;
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const fallback = await api.get('/admin/system/providers');
+      return fallback.data?.data || fallback.data;
+    }
+    throw err;
+  }
 }
 
 export async function executeGlobalSearch(query: string): Promise<GlobalSearchResult> {

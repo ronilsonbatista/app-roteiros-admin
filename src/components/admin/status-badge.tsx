@@ -136,6 +136,7 @@ export function StatusBadge({ status, label, className, size = 'sm' }: StatusBad
     case 'HEALTHY':
     case 'UP':
     case 'OK':
+    case 'CONFIGURED':
       styles = "bg-emerald-50 text-emerald-700 border-emerald-200/60";
       icon = <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />;
       displayLabel = label || 'Operacional';

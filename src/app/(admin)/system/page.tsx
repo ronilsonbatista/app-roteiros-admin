@@ -85,10 +85,12 @@ export default function SystemStatusPage() {
   }, [fetchAudit]);
 
   const getStatusKey = (providerObj?: { status?: string; configured?: boolean }) => {
-    if (!providerObj || !providerObj.configured) return 'NOT_CONFIGURED';
+    if (!providerObj) return 'NOT_CONFIGURED';
+    if (providerObj.configured === false) return 'NOT_CONFIGURED';
     const st = (providerObj.status || '').toLowerCase();
-    if (['healthy', 'ok', 'up', 'operational'].includes(st)) return 'OPERATIONAL';
+    if (['healthy', 'ok', 'up', 'operational', 'configured'].includes(st)) return 'OPERATIONAL';
     if (['warn', 'attention'].includes(st)) return 'ATTENTION';
+    if (providerObj.configured) return 'OPERATIONAL';
     return 'UNAVAILABLE';
   };
 
