@@ -87,9 +87,9 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     {
       title: 'MARKETING',
       items: [
-        { name: 'Campanhas', href: '/marketing', icon: Megaphone, exact: true },
-        { name: 'Templates', href: '/marketing/templates', icon: MailCheck },
-        { name: 'Segmentos', href: '/marketing/segments', icon: Layers },
+        { name: 'Campanhas', href: '/marketing', icon: Megaphone, exact: true, badge: 'Em breve' },
+        { name: 'Templates', href: '/marketing/templates', icon: MailCheck, badge: 'Em breve' },
+        { name: 'Segmentos', href: '/marketing/segments', icon: Layers, badge: 'Em breve' },
       ],
     },
     {
@@ -108,7 +108,7 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
     {
       title: 'ANALYTICS',
       items: [
-        { name: 'Métricas da Plataforma', href: '/analytics', icon: BarChart3 },
+        { name: 'Métricas da Plataforma', href: '/analytics', icon: BarChart3, badge: 'Em breve' },
       ],
     },
     {
@@ -190,7 +190,14 @@ export default function Sidebar({ className, onItemClick }: SidebarProps) {
                     </div>
 
                     {item.badge && (
-                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono border border-slate-200">
+                      <span
+                        className={cn(
+                          "text-[9px] px-1.5 py-0.5 rounded font-mono border",
+                          item.badge === 'Em breve'
+                            ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        )}
+                      >
                         {item.badge}
                       </span>
                     )}
