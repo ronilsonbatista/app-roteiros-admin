@@ -74,7 +74,17 @@ export interface CreateCompanyExpenseInput {
 
 export interface UpdateCompanyExpenseInput extends Partial<CreateCompanyExpenseInput> {}
 
-export async function listCompanyExpenses(filters: CompanyExpenseFilters = {}) {
+export interface CompanyExpensesListResponse {
+  data: CompanyExpense[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export async function listCompanyExpenses(filters: CompanyExpenseFilters = {}): Promise<CompanyExpensesListResponse> {
   const params = new URLSearchParams();
 
   if (filters.competenceMonth) params.append('competenceMonth', filters.competenceMonth);
@@ -88,7 +98,30 @@ export async function listCompanyExpenses(filters: CompanyExpenseFilters = {}) {
   if (filters.order) params.append('order', filters.order);
 
   const response = await api.get(`/admin/company-expenses?${params.toString()}`);
-  return response.data?.data !== undefined ? response.data : { data: response.data, meta: { total: response.data.length, page: 1, limit: 20, totalPages: 1 } };
+  const raw = response.data;
+  const payload = raw?.data !== undefined ? raw.data : raw;
+
+  if (Array.isArray(payload)) {
+    return {
+      data: payload,
+      meta: { total: payload.length, page: 1, limit: payload.length, totalPages: 1 },
+    };
+  }
+
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : [];
+
+  const meta = payload?.meta || {
+    total: list.length,
+    page: 1,
+    limit: 20,
+    totalPages: 1,
+  };
+
+  return { data: list, meta };
 }
 
 export async function getCompanyExpensesSummary(competenceMonth?: string): Promise<CompanyExpensesSummary> {

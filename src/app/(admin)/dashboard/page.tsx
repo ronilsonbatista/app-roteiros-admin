@@ -252,7 +252,7 @@ export default function DashboardPage() {
 
         <MetricCard
           title="CONVERSÃO GLOBAL DO FUNIL"
-          value={`${overallConversion.toFixed(1)}%`}
+          value={`${Number(overallConversion || 0).toFixed(1)}%`}
           subtitle="Taxa de visitantes para compradores"
           icon={TrendingUp}
           href="/leads"
@@ -260,7 +260,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Conversion Funnel Breakdown Section */}
-      {funnel && funnel.funnel.length > 0 && (
+      {funnel && Array.isArray(funnel.funnel) && funnel.funnel.length > 0 && (
         <Card className="p-5 bg-white border border-slate-200/90 shadow-2xs space-y-4 rounded-xl">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
             <div>

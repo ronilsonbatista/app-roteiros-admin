@@ -208,10 +208,16 @@ export default function CompanyExpensesPage() {
         orderBy: 'spentAt',
         order: 'desc',
       });
-      setExpenses(response.data || []);
+      const list = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
+      setExpenses(list);
     } catch (err: any) {
       console.error('Falha ao carregar lista de despesas:', err);
       setError('Não foi possível carregar os gastos do período. Tente novamente.');
+      setExpenses([]);
     } finally {
       setIsLoading(false);
     }
@@ -318,7 +324,8 @@ export default function CompanyExpensesPage() {
 
   // Total calculated from currently displayed list
   const listSumCents = useMemo(() => {
-    return expenses.reduce((acc, curr) => acc + curr.amountCents, 0);
+    if (!Array.isArray(expenses)) return 0;
+    return expenses.reduce((acc, curr) => acc + (curr?.amountCents || 0), 0);
   }, [expenses]);
 
   return (
@@ -486,18 +493,19 @@ export default function CompanyExpensesPage() {
               <div className="h-7 w-32 bg-slate-100 animate-pulse rounded" />
             ) : (
               (() => {
-                const topCategory = summary?.byCategory?.filter((c) => c.totalCents > 0).sort((a, b) => b.totalCents - a.totalCents)[0];
+                const list = Array.isArray(summary?.byCategory) ? summary.byCategory : [];
+                const topCategory = list.filter((c) => c && c.totalCents > 0).sort((a, b) => b.totalCents - a.totalCents)[0];
                 if (!topCategory) {
                   return <div className="text-sm font-medium text-slate-400">Sem gastos no período</div>;
                 }
-                const conf = CATEGORY_CONFIG[topCategory.category];
+                const conf = (topCategory.category && CATEGORY_CONFIG[topCategory.category]) || CATEGORY_CONFIG.OUTROS;
                 return (
                   <div className="flex items-baseline gap-2">
                     <span className="text-lg font-bold text-slate-900 truncate">
                       {conf?.label || topCategory.category}
                     </span>
                     <span className="text-xs font-semibold text-slate-500">
-                      ({topCategory.percentage}% do total)
+                      ({topCategory.percentage || 0}% do total)
                     </span>
                   </div>
                 );
@@ -507,7 +515,8 @@ export default function CompanyExpensesPage() {
 
           <div className="mt-2 text-xs text-slate-500">
             {(() => {
-              const topCategory = summary?.byCategory?.filter((c) => c.totalCents > 0).sort((a, b) => b.totalCents - a.totalCents)[0];
+              const list = Array.isArray(summary?.byCategory) ? summary.byCategory : [];
+              const topCategory = list.filter((c) => c && c.totalCents > 0).sort((a, b) => b.totalCents - a.totalCents)[0];
               return topCategory ? `${formatCurrency(topCategory.totalCents)} em ${topCategory.count} lançamentos` : 'Aguardando lançamentos';
             })()}
           </div>
@@ -547,27 +556,27 @@ export default function CompanyExpensesPage() {
       </div>
 
       {/* Distribuição por Categoria (Barras de progresso / Badges) */}
-      {summary && summary.byCategory && summary.byCategory.some((c) => c.totalCents > 0) && (
+      {summary && Array.isArray(summary.byCategory) && summary.byCategory.some((c) => c && c.totalCents > 0) && (
         <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Distribuição do Orçamento no Mês
             </span>
             <span className="text-xs text-slate-400 font-medium">
-              100% = {formatCurrency(summary.totalCents)}
+              100% = {formatCurrency(summary.totalCents || 0)}
             </span>
           </div>
 
           {/* Barra de distribuição proporcional */}
           <div className="h-3 w-full rounded-full bg-slate-100 flex overflow-hidden p-0.5 gap-0.5 mb-3">
             {summary.byCategory
-              .filter((c) => c.totalCents > 0)
+              .filter((c) => c && c.totalCents > 0)
               .map((c) => {
-                const conf = CATEGORY_CONFIG[c.category];
+                const conf = (c.category && CATEGORY_CONFIG[c.category]) || CATEGORY_CONFIG.OUTROS;
                 return (
                   <div
                     key={c.category}
-                    style={{ width: `${Math.max(c.percentage, 2)}%` }}
+                    style={{ width: `${Math.max(c.percentage || 0, 2)}%` }}
                     className={`h-full rounded-xs transition-all ${
                       c.category === 'INFRA'
                         ? 'bg-sky-500'
@@ -581,7 +590,7 @@ export default function CompanyExpensesPage() {
                         ? 'bg-purple-500'
                         : 'bg-slate-400'
                     }`}
-                    title={`${conf.label}: ${formatCurrency(c.totalCents)} (${c.percentage}%)`}
+                    title={`${conf.label}: ${formatCurrency(c.totalCents || 0)} (${c.percentage || 0}%)`}
                   />
                 );
               })}
@@ -590,7 +599,7 @@ export default function CompanyExpensesPage() {
           {/* Badges de categoria */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {summary.byCategory.map((c) => {
-              const conf = CATEGORY_CONFIG[c.category];
+              const conf = (c?.category && CATEGORY_CONFIG[c.category]) || CATEGORY_CONFIG.OUTROS;
               const Icon = conf.icon;
               return (
                 <div
@@ -602,9 +611,9 @@ export default function CompanyExpensesPage() {
                     <span className="truncate">{conf.label}</span>
                   </div>
                   <div className="mt-1.5">
-                    <p className="text-xs font-bold text-slate-900">{formatCurrency(c.totalCents)}</p>
+                    <p className="text-xs font-bold text-slate-900">{formatCurrency(c.totalCents || 0)}</p>
                     <p className="text-[10px] text-slate-500">
-                      {c.count} {c.count === 1 ? 'item' : 'itens'} ({c.percentage}%)
+                      {c.count || 0} {c.count === 1 ? 'item' : 'itens'} ({c.percentage || 0}%)
                     </p>
                   </div>
                 </div>
@@ -696,7 +705,7 @@ export default function CompanyExpensesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {expenses.map((expense) => {
+                {(expenses || []).map((expense) => {
                   const conf = CATEGORY_CONFIG[expense.category] || CATEGORY_CONFIG.OUTROS;
                   const CategoryIcon = conf.icon;
                   return (
@@ -771,7 +780,7 @@ export default function CompanyExpensesPage() {
 
           {/* Cards Mobile */}
           <div className="md:hidden space-y-3">
-            {expenses.map((expense) => {
+            {(expenses || []).map((expense) => {
               const conf = CATEGORY_CONFIG[expense.category] || CATEGORY_CONFIG.OUTROS;
               const CategoryIcon = conf.icon;
               return (

@@ -146,7 +146,12 @@ export async function getFunnel(startDate?: string, endDate?: string): Promise<F
   const params: Record<string, any> = {};
   if (startDate) params.startDate = startDate;
   if (endDate) params.endDate = endDate;
-  const response = await api.get('/admin/analytics/funnel', { params });
-  return response.data?.data || response.data;
+  try {
+    const response = await api.get('/admin/dashboard/funnel', { params });
+    return response.data?.data || response.data;
+  } catch {
+    const response = await api.get('/admin/analytics/funnel', { params });
+    return response.data?.data || response.data;
+  }
 }
 
