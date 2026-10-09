@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 
-const PANEL_URL = 'http://localhost:3006';
+const PANEL_URL = process.env.PANEL_URL || 'https://painel.2goroteiros.com';
 const API_URL = 'https://core-api-production-e849.up.railway.app';
 const ADMIN_EMAIL = 'admin@2goroteiros.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Senha123*';
@@ -30,7 +30,6 @@ async function main() {
       '--disable-gpu',
       '--no-sandbox',
       '--disable-extensions',
-      '--disable-web-security',
       `--user-data-dir=/tmp/chrome-shot-${Date.now()}`,
       '--window-size=1440,900',
     ],
@@ -72,21 +71,26 @@ async function main() {
     await send('Runtime.enable');
     await send('Network.enable');
 
+    const panelHost = new URL(PANEL_URL).hostname;
+    const isLocalhost = panelHost === 'localhost' || panelHost === '127.0.0.1';
+
     await send('Network.setCookie', {
       name: 'accessToken',
       value: accessToken,
-      url: PANEL_URL,
+      domain: isLocalhost ? undefined : panelHost,
+      url: isLocalhost ? PANEL_URL : undefined,
       path: '/',
-      secure: false,
+      secure: !isLocalhost,
       httpOnly: false,
     });
     if (refreshToken) {
       await send('Network.setCookie', {
         name: 'refreshToken',
         value: refreshToken,
-        url: PANEL_URL,
+        domain: isLocalhost ? undefined : panelHost,
+        url: isLocalhost ? PANEL_URL : undefined,
         path: '/',
-        secure: false,
+        secure: !isLocalhost,
         httpOnly: false,
       });
     }
