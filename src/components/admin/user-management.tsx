@@ -10,6 +10,7 @@ import {
   getUserTrips,
   getUserTravelProfile,
   updateUser,
+  createUser,
   User,
   UserTrip,
   UserTravelProfile
@@ -33,6 +34,7 @@ import { EmptyState } from '@/components/admin/empty-state';
 import {
   UserCheck,
   UserX,
+  UserPlus,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -70,6 +72,17 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
   const [phoneInput, setPhoneInput] = useState('');
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [phoneSaveSuccess, setPhoneSaveSuccess] = useState(false);
+
+  // Create user state
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+  });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const fetchUsersList = useCallback(async () => {
     setIsLoading(true);
@@ -176,6 +189,33 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.fullName.trim() || !createForm.email.trim()) {
+      setCreateError('Nome e e-mail são obrigatórios.');
+      return;
+    }
+    setIsCreatingUser(true);
+    setCreateError(null);
+    try {
+      await createUser({
+        fullName: createForm.fullName.trim(),
+        email: createForm.email.trim().toLowerCase(),
+        phone: createForm.phone.trim() || undefined,
+        password: createForm.password.trim() || 'Senha123*',
+        role,
+      });
+      setIsCreateOpen(false);
+      setCreateForm({ fullName: '', email: '', phone: '', password: '' });
+      await fetchUsersList();
+    } catch (err: any) {
+      console.error('Failed to create user:', err);
+      setCreateError(err.response?.data?.message || err.message || 'Erro ao cadastrar usuário.');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -198,6 +238,18 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin text-[#001F5B]' : ''}`} />
               Atualizar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setCreateForm({ fullName: '', email: '', phone: '', password: '' });
+                setCreateError(null);
+                setIsCreateOpen(true);
+              }}
+              className="text-xs h-9 bg-[#001F5B] hover:bg-[#001744] text-white"
+            >
+              <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+              {role === 'ADMIN' ? 'Novo Administrador' : 'Novo Viajante'}
             </Button>
           </div>
         }
@@ -476,6 +528,94 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
               )}
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create User Sheet */}
+      <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md bg-white border-l border-slate-200 p-6 space-y-4 overflow-y-auto text-xs">
+          <SheetHeader className="border-b border-slate-100 pb-3">
+            <SheetTitle className="text-base font-bold text-slate-900">
+              {role === 'ADMIN' ? 'Cadastrar Administrador' : 'Cadastrar Novo Viajante'}
+            </SheetTitle>
+            <SheetDescription className="text-xs text-slate-500">
+              Preencha os dados cadastrais para criar um novo usuário no sistema.
+            </SheetDescription>
+          </SheetHeader>
+
+          <form onSubmit={handleCreateUser} className="space-y-4 pt-2">
+            {createError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                {createError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-700">Nome Completo *</label>
+              <input
+                type="text"
+                required
+                placeholder="Ex: Maurício Vieira"
+                value={createForm.fullName}
+                onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] bg-white text-slate-800"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-700">E-mail *</label>
+              <input
+                type="email"
+                required
+                placeholder="Ex: mauricio.vieira@email.com"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] bg-white text-slate-800"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-700">WhatsApp / Telefone</label>
+              <input
+                type="text"
+                placeholder="Ex: +5511987654321"
+                value={createForm.phone}
+                onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] bg-white text-slate-800"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-700">Senha Provisória (opcional)</label>
+              <input
+                type="password"
+                placeholder="Padrão: Senha123*"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] bg-white text-slate-800"
+              />
+            </div>
+
+            <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateOpen(false)}
+                className="text-xs h-9 border-slate-200 text-slate-700"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isCreatingUser}
+                className="text-xs h-9 bg-[#001F5B] hover:bg-[#001744] text-white"
+              >
+                {isCreatingUser ? 'Cadastrando...' : 'Cadastrar'}
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

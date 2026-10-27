@@ -271,6 +271,8 @@ const CONTINENT_MAP: Record<string, string> = {
   pequim: 'Ásia', beijing: 'Ásia', xangai: 'Ásia', shanghai: 'Ásia', china: 'Ásia', hong_kong: 'Ásia',
   taiwan: 'Ásia', taipei: 'Ásia',
   hanoi: 'Ásia', vietna: 'Ásia', vietnam: 'Ásia',
+  filipinas: 'Ásia', philippines: 'Ásia', manila: 'Ásia', boracay: 'Ásia',
+  malasia: 'Ásia', malaysia: 'Ásia', kuala_lumpur: 'Ásia', penang: 'Ásia',
   dubai: 'Ásia', emirados: 'Ásia', uae: 'Ásia', doha: 'Ásia', qatar: 'Ásia',
   india: 'Ásia', delhi: 'Ásia', mumbai: 'Ásia',
   asia: 'Ásia',

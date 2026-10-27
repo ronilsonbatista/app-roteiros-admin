@@ -156,3 +156,21 @@ export async function updateUser(
   const response = await api.patch(`/admin/users/${id}`, data);
   return response.data?.data || response.data;
 }
+
+/**
+ * Create a new user (via admin API)
+ */
+export async function createUser(data: {
+  fullName: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  role?: 'USER' | 'ADMIN';
+}): Promise<User> {
+  const response = await api.post('/admin/users', {
+    ...data,
+    password: data.password || 'Senha123*',
+    role: data.role || 'USER',
+  });
+  return response.data?.data || response.data;
+}
