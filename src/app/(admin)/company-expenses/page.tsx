@@ -152,9 +152,14 @@ function addMonths(competenceMonth: string, delta: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+export type PeriodMode = 'month' | 'quarter' | 'year';
+
 export default function CompanyExpensesPage() {
   const currentRealMonth = useMemo(() => getInitialMonth(), []);
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(currentRealMonth);
+  const [selectedYear, setSelectedYear] = useState<string>(() => String(new Date().getFullYear()));
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(() => Math.floor(new Date().getMonth() / 3) + 1);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -182,29 +187,44 @@ export default function CompanyExpensesPage() {
   const [deletingExpense, setDeletingExpense] = useState<CompanyExpense | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
+  // Compute query params based on selected period
+  const getFilterParams = useCallback(() => {
+    if (periodMode === 'year') {
+      return { competenceYear: selectedYear };
+    }
+    if (periodMode === 'quarter') {
+      const startMonth = (selectedQuarter - 1) * 3 + 1;
+      const months = [0, 1, 2].map(i => `${selectedYear}-${String(startMonth + i).padStart(2, '0')}`).join(',');
+      return { competenceMonths: months };
+    }
+    return { competenceMonth: selectedMonth };
+  }, [periodMode, selectedYear, selectedQuarter, selectedMonth]);
+
   // Fetch summary
   const fetchSummary = useCallback(async () => {
     setIsSummaryLoading(true);
     try {
-      const data = await getCompanyExpensesSummary(selectedMonth);
+      const query = getFilterParams();
+      const data = await getCompanyExpensesSummary(query);
       setSummary(data);
     } catch (err: any) {
       console.error('Falha ao carregar resumo de despesas:', err);
     } finally {
       setIsSummaryLoading(false);
     }
-  }, [selectedMonth]);
+  }, [getFilterParams]);
 
   // Fetch list
   const fetchExpenses = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
+      const periodQuery = getFilterParams();
       const response = await listCompanyExpenses({
-        competenceMonth: selectedMonth,
+        ...periodQuery,
         category: categoryFilter,
         search: searchQuery.trim() || undefined,
-        limit: 100,
+        limit: 200,
         orderBy: 'spentAt',
         order: 'desc',
       });
@@ -221,7 +241,7 @@ export default function CompanyExpensesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedMonth, categoryFilter, searchQuery]);
+  }, [getFilterParams, categoryFilter, searchQuery]);
 
   useEffect(() => {
     fetchSummary();
@@ -370,76 +390,157 @@ export default function CompanyExpensesPage() {
         </div>
       </div>
 
-      {/* Seletor de Competência (Mês / Ano) */}
+      {/* Seletor de Competência (Mês / Trimestre / Ano) */}
       <Card className="p-3.5 bg-white border-slate-200/90 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-[#001F5B]" />
-            <span className="text-xs font-semibold text-slate-700">Competência:</span>
+            <span className="text-xs font-semibold text-slate-700">Período:</span>
             <span className="text-sm font-bold text-slate-900 capitalize">
-              {formatMonthLabel(selectedMonth)}
+              {periodMode === 'year'
+                ? `Ano de ${selectedYear}`
+                : periodMode === 'quarter'
+                ? `${selectedQuarter}º Trimestre (${selectedYear})`
+                : formatMonthLabel(selectedMonth)}
             </span>
-            {selectedMonth === currentRealMonth && (
+            {periodMode === 'month' && selectedMonth === currentRealMonth && (
               <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium">
                 Mês Atual
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 self-end sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedMonth(addMonths(selectedMonth, -1))}
-              className="h-8 px-2.5 text-xs border-slate-200"
-              title="Mês Anterior"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-              Anterior
-            </Button>
-
-            {selectedMonth !== currentRealMonth && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedMonth(currentRealMonth)}
-                className="h-8 px-2.5 text-xs text-[#001F5B] hover:bg-[#001F5B]/5 font-semibold"
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Period Mode Switch */}
+            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs">
+              <button
+                type="button"
+                onClick={() => setPeriodMode('month')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  periodMode === 'month' ? 'bg-white text-[#001F5B] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                Mês Atual
-              </Button>
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodMode('quarter')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  periodMode === 'quarter' ? 'bg-white text-[#001F5B] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Trimestral
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodMode('year')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  periodMode === 'year' ? 'bg-white text-[#001F5B] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Anual
+              </button>
+            </div>
+
+            {/* Controls depending on mode */}
+            {periodMode === 'month' && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedMonth(addMonths(selectedMonth, -1))}
+                  className="h-8 px-2.5 text-xs border-slate-200"
+                  title="Mês Anterior"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                  Anterior
+                </Button>
+
+                {selectedMonth !== currentRealMonth && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedMonth(currentRealMonth)}
+                    className="h-8 px-2.5 text-xs text-[#001F5B] hover:bg-[#001F5B]/5 font-semibold"
+                  >
+                    Mês Atual
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
+                  className="h-8 px-2.5 text-xs border-slate-200"
+                  title="Próximo Mês"
+                >
+                  Próximo
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+                  className="h-8 px-2 text-xs border border-slate-200 rounded-lg text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
+                />
+              </div>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
-              className="h-8 px-2.5 text-xs border-slate-200"
-              title="Próximo Mês"
-            >
-              Próximo
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
+            {periodMode === 'quarter' && (
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4].map((q) => (
+                  <Button
+                    key={q}
+                    variant={selectedQuarter === q ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedQuarter(q)}
+                    className={`h-8 px-2.5 text-xs ${selectedQuarter === q ? 'bg-[#001F5B] text-white' : 'border-slate-200'}`}
+                  >
+                    Q{q}
+                  </Button>
+                ))}
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="h-8 px-2 text-xs border border-slate-200 rounded-lg text-slate-700 bg-slate-50 font-semibold"
+                >
+                  {['2024', '2025', '2026', '2027'].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-              className="h-8 px-2 text-xs border border-slate-200 rounded-lg text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
-            />
+            {periodMode === 'year' && (
+              <div className="flex items-center gap-1.5">
+                {['2024', '2025', '2026', '2027'].map((y) => (
+                  <Button
+                    key={y}
+                    variant={selectedYear === y ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedYear(y)}
+                    className={`h-8 px-3 text-xs ${selectedYear === y ? 'bg-[#001F5B] text-white font-bold' : 'border-slate-200'}`}
+                  >
+                    {y}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* Resumo Financeiro (KPIs) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Total do Mês */}
+      {/* Resumo Financeiro & Faturamento (DRE / OPEX / Resultado) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total de Gastos (OPEX) */}
         <Card className="p-4 bg-white border-slate-200/90 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-              Total do Mês
+              Gastos (OPEX)
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[#001F5B]/10 text-[#001F5B] flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center">
+              <Receipt className="w-4 h-4" />
             </div>
           </div>
 
@@ -454,8 +555,8 @@ export default function CompanyExpensesPage() {
           </div>
 
           <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-            <span>{summary?.totalCount || 0} lançamentos registrados</span>
-            {summary?.previousMonth?.percentageChange !== null &&
+            <span>{summary?.totalCount || 0} lançamentos</span>
+            {periodMode === 'month' && summary?.previousMonth?.percentageChange !== null &&
               summary?.previousMonth?.percentageChange !== undefined && (
                 <span
                   className={`inline-flex items-center font-medium ${
@@ -471,17 +572,112 @@ export default function CompanyExpensesPage() {
                   ) : (
                     <TrendingDown className="w-3 h-3 mr-0.5" />
                   )}
-                  {Math.abs(summary.previousMonth.percentageChange)}% vs mês ant.
+                  {Math.abs(summary.previousMonth.percentageChange)}% vs ant.
                 </span>
               )}
           </div>
         </Card>
 
+        {/* Faturamento Bruto (Receita de Compras) */}
+        <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
+              Faturamento Bruto
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="mt-2.5">
+            {isSummaryLoading ? (
+              <div className="h-7 w-32 bg-slate-100 animate-pulse rounded" />
+            ) : (
+              <div className="text-2xl font-bold text-emerald-700 tracking-tight">
+                {formatCurrency(summary?.revenue?.grossCents || 0)}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 text-xs text-slate-500">
+            {summary?.revenue?.purchasesCount || 0} {(summary?.revenue?.purchasesCount || 0) === 1 ? 'compra aprovada' : 'compras aprovadas'} no app
+          </div>
+        </Card>
+
+        {/* Faturamento Líquido (Estimado) */}
+        <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
+              Faturamento Líquido
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#001F5B] flex items-center justify-center">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="mt-2.5">
+            {isSummaryLoading ? (
+              <div className="h-7 w-32 bg-slate-100 animate-pulse rounded" />
+            ) : (
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {formatCurrency(summary?.revenue?.netCents || 0)}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 text-xs text-slate-500 truncate" title={`Taxas de processamento est.: ${formatCurrency(summary?.revenue?.gatewayFeesEstimatedCents || 0)}`}>
+            Taxas est.: {formatCurrency(summary?.revenue?.gatewayFeesEstimatedCents || 0)}
+          </div>
+        </Card>
+
+        {/* Resultado Operacional (Balanço) */}
+        <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
+              Resultado Operacional
+            </span>
+            {(() => {
+              const balance = summary?.revenue?.operationalBalanceCents || 0;
+              return (
+                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
+                  balance >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                }`}>
+                  {balance >= 0 ? 'Superávit' : 'Déficit'}
+                </span>
+              );
+            })()}
+          </div>
+
+          <div className="mt-2.5">
+            {isSummaryLoading ? (
+              <div className="h-7 w-32 bg-slate-100 animate-pulse rounded" />
+            ) : (
+              (() => {
+                const balance = summary?.revenue?.operationalBalanceCents || 0;
+                return (
+                  <div className={`text-2xl font-bold tracking-tight ${
+                    balance >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                  }`}>
+                    {formatCurrency(balance)}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
+          <div className="mt-2 text-xs text-slate-500">
+            Líquido - Gastos do período
+          </div>
+        </Card>
+      </div>
+
+      {/* Linha Secundária: Maior Categoria & Conferência */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Categoria com Maior Impacto */}
         <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-              Maior Categoria
+              Maior Categoria de Custo
             </span>
             <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
               <Layers className="w-4 h-4" />
@@ -505,7 +701,7 @@ export default function CompanyExpensesPage() {
                       {conf?.label || topCategory.category}
                     </span>
                     <span className="text-xs font-semibold text-slate-500">
-                      ({topCategory.percentage || 0}% do total)
+                      ({topCategory.percentage || 0}% dos gastos)
                     </span>
                   </div>
                 );
@@ -523,10 +719,10 @@ export default function CompanyExpensesPage() {
         </Card>
 
         {/* Consistência & Validação */}
-        <Card className="p-4 bg-white border-slate-200/90 shadow-2xs sm:col-span-2 lg:col-span-1">
+        <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-              Conferência da Lista
+              Conferência da Lista vs Resumo
             </span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
@@ -543,7 +739,7 @@ export default function CompanyExpensesPage() {
             {summary && Math.abs(listSumCents - summary.totalCents) === 0 ? (
               <span className="text-emerald-700 font-medium inline-flex items-center">
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                Soma da lista confere 100% com o resumo financeiro
+                Soma da listagem confere 100% com o total consolidado
               </span>
             ) : (
               <span className="text-amber-700 font-medium inline-flex items-center">

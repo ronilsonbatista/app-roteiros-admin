@@ -37,20 +37,31 @@ export interface CategorySummary {
 }
 
 export interface CompanyExpensesSummary {
-  competenceMonth: string;
+  competenceMonth?: string;
+  competenceYear?: string;
+  periodLabel?: string;
   totalCents: number;
   totalCount: number;
-  previousMonth: {
+  previousMonth?: {
     competenceMonth: string;
     totalCents: number;
     differenceCents: number;
     percentageChange: number | null;
   };
   byCategory: CategorySummary[];
+  revenue?: {
+    grossCents: number;
+    netCents: number;
+    gatewayFeesEstimatedCents: number;
+    purchasesCount: number;
+    operationalBalanceCents: number;
+  };
 }
 
 export interface CompanyExpenseFilters {
   competenceMonth?: string;
+  competenceYear?: string;
+  competenceMonths?: string;
   month?: string;
   category?: CompanyExpenseCategory | string;
   search?: string;
@@ -88,6 +99,8 @@ export async function listCompanyExpenses(filters: CompanyExpenseFilters = {}): 
   const params = new URLSearchParams();
 
   if (filters.competenceMonth) params.append('competenceMonth', filters.competenceMonth);
+  if (filters.competenceYear) params.append('competenceYear', filters.competenceYear);
+  if (filters.competenceMonths) params.append('competenceMonths', filters.competenceMonths);
   if (filters.month) params.append('month', filters.month);
   if (filters.category && filters.category !== 'ALL') params.append('category', filters.category);
   if (filters.search) params.append('search', filters.search);
@@ -124,9 +137,21 @@ export async function listCompanyExpenses(filters: CompanyExpenseFilters = {}): 
   return { data: list, meta };
 }
 
-export async function getCompanyExpensesSummary(competenceMonth?: string): Promise<CompanyExpensesSummary> {
+export interface CompanyExpensesSummaryQuery {
+  competenceMonth?: string;
+  competenceYear?: string;
+  competenceMonths?: string;
+}
+
+export async function getCompanyExpensesSummary(query?: string | CompanyExpensesSummaryQuery): Promise<CompanyExpensesSummary> {
   const params = new URLSearchParams();
-  if (competenceMonth) params.append('competenceMonth', competenceMonth);
+  if (typeof query === 'string') {
+    if (query) params.append('competenceMonth', query);
+  } else if (query) {
+    if (query.competenceMonth) params.append('competenceMonth', query.competenceMonth);
+    if (query.competenceYear) params.append('competenceYear', query.competenceYear);
+    if (query.competenceMonths) params.append('competenceMonths', query.competenceMonths);
+  }
 
   const response = await api.get(`/admin/company-expenses/summary?${params.toString()}`);
   return response.data?.data !== undefined ? response.data.data : response.data;

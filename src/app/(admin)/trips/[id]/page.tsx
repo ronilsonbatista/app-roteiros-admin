@@ -30,6 +30,8 @@ import {
   getDayMealRecommendations,
   pinMealToItem,
   getItineraryItemDetails,
+  getTripDaysCount,
+  formatTripDestinationTitle,
   Trip,
   TripDay,
   ItineraryItem,
@@ -95,7 +97,9 @@ import {
   Bike,
   PlaneTakeoff,
   PlaneLanding,
-  Shuffle
+  Shuffle,
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 
 export default function TripDetailPage() {
@@ -154,6 +158,7 @@ export default function TripDetailPage() {
   // Accommodation Drawer / Form
   const [accommodationDrawerOpen, setAccommodationDrawerOpen] = useState(false);
   const [accName, setAccName] = useState('');
+  const [accCity, setAccCity] = useState('');
   const [accAddress, setAccAddress] = useState('');
   const [accNeighborhood, setAccNeighborhood] = useState('');
   const [accZipCode, setAccZipCode] = useState('');
@@ -168,6 +173,27 @@ export default function TripDetailPage() {
   const [accSearchQuery, setAccSearchQuery] = useState('');
   const [accSearchResults, setAccSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearchingAccPlaces, setIsSearchingAccPlaces] = useState(false);
+
+  // Multi-Hotel Accommodation State
+  const [multiAccommodations, setMultiAccommodations] = useState<
+    Array<{
+      id?: string;
+      name: string;
+      city?: string;
+      address?: string;
+      neighborhood?: string;
+      zipCode?: string;
+      providerPlaceId?: string;
+      latitude?: number;
+      longitude?: number;
+      checkInDate?: string;
+      checkInTime?: string;
+      checkOutDate?: string;
+      checkOutTime?: string;
+      isBase?: boolean;
+    }>
+  >([]);
+  const [selectedAccIndex, setSelectedAccIndex] = useState<number>(0);
 
   // Alternatives & Substitution Modal
   const [alternativesModalOpen, setAlternativesModalOpen] = useState(false);
@@ -191,6 +217,36 @@ export default function TripDetailPage() {
 
   // Quick Duration updating state
   const [updatingDurationItemId, setUpdatingDurationItemId] = useState<string | null>(null);
+
+  // Derived Multi-destination legs and cities
+  const tripDestinations = React.useMemo(() => {
+    if (!trip) return [];
+    if (Array.isArray(trip.preferences?.destinations) && trip.preferences.destinations.length > 0) {
+      return trip.preferences.destinations.map((d: any) => ({
+        name: d.name || d.city || String(d),
+        arrivalDate: d.arrivalDate,
+        arrivalTime: d.arrivalTime,
+        departureDate: d.departureDate,
+        departureTime: d.departureTime,
+        days: d.days,
+      }));
+    }
+    if (Array.isArray(trip.preferences?.legs) && trip.preferences.legs.length > 0) {
+      return trip.preferences.legs.map((l: any) => ({
+        name: l.destination || l.city || l.name || String(l),
+        arrivalDate: l.startDate || l.arrivalDate,
+        departureDate: l.endDate || l.departureDate,
+        days: l.days,
+      }));
+    }
+    if (trip.destination && (trip.destination.includes(',') || trip.destination.includes(' - ') || trip.destination.includes(' / '))) {
+      const rawCities = trip.destination.split(/[,/-]/).map(s => s.trim()).filter(Boolean);
+      if (rawCities.length >= 2) {
+        return rawCities.map(name => ({ name, days: undefined, arrivalDate: undefined, arrivalTime: undefined, departureDate: undefined, departureTime: undefined }));
+      }
+    }
+    return [];
+  }, [trip]);
 
   // Fetch full details of the trip
   const fetchTripDetails = useCallback(async () => {
@@ -485,36 +541,134 @@ export default function TripDetailPage() {
     }
   };
 
+  const syncAccToForm = (acc: any) => {
+    setAccName(acc?.name || '');
+    setAccCity(acc?.city || '');
+    setAccAddress(acc?.address || '');
+    setAccNeighborhood(acc?.neighborhood || '');
+    setAccZipCode(acc?.zipCode || '');
+    setAccCheckInDate(acc?.checkInDate || (acc?.checkInDateTime ? acc.checkInDateTime.split('T')[0] : ''));
+    setAccCheckInTime(acc?.checkInTime || '14:00');
+    setAccCheckOutDate(acc?.checkOutDate || (acc?.checkOutDateTime ? acc.checkOutDateTime.split('T')[0] : ''));
+    setAccCheckOutTime(acc?.checkOutTime || '11:00');
+    setAccProviderPlaceId(acc?.providerPlaceId || '');
+    setAccLatitude(acc?.latitude ?? undefined);
+    setAccLongitude(acc?.longitude ?? undefined);
+  };
+
+  const getFormAsAcc = (baseAcc?: any) => ({
+    ...baseAcc,
+    name: accName.trim(),
+    city: accCity.trim() || undefined,
+    address: accAddress.trim() || undefined,
+    neighborhood: accNeighborhood.trim() || undefined,
+    zipCode: accZipCode.trim() || undefined,
+    providerPlaceId: accProviderPlaceId.trim() || undefined,
+    latitude: accLatitude,
+    longitude: accLongitude,
+    checkInDate: accCheckInDate || undefined,
+    checkInTime: accCheckInTime || undefined,
+    checkOutDate: accCheckOutDate || undefined,
+    checkOutTime: accCheckOutTime || undefined,
+    isBase: multiAccommodations[selectedAccIndex]?.isBase ?? false,
+  });
+
   // Accommodation Handlers
   const handleOpenAccommodation = () => {
-    if (trip?.accommodation) {
-      setAccName(trip.accommodation.name || '');
-      setAccAddress(trip.accommodation.address || '');
-      setAccNeighborhood(trip.accommodation.neighborhood || '');
-      setAccZipCode(trip.accommodation.zipCode || '');
-      setAccCheckInDate(trip.accommodation.checkInDate || (trip.accommodation.checkInDateTime ? trip.accommodation.checkInDateTime.split('T')[0] : ''));
-      setAccCheckInTime(trip.accommodation.checkInTime || '');
-      setAccCheckOutDate(trip.accommodation.checkOutDate || (trip.accommodation.checkOutDateTime ? trip.accommodation.checkOutDateTime.split('T')[0] : ''));
-      setAccCheckOutTime(trip.accommodation.checkOutTime || '');
-      setAccProviderPlaceId(trip.accommodation.providerPlaceId || '');
-      setAccLatitude(trip.accommodation.latitude ?? undefined);
-      setAccLongitude(trip.accommodation.longitude ?? undefined);
+    let list: any[] = [];
+    if (Array.isArray(trip?.preferences?.accommodations) && trip.preferences.accommodations.length > 0) {
+      list = trip.preferences.accommodations.map((a: any, idx: number) => ({
+        ...a,
+        isBase: a.isBase ?? (idx === 0),
+      }));
+    } else if (trip?.accommodation) {
+      list = [{
+        id: trip.accommodation.id,
+        name: trip.accommodation.name || '',
+        city: trip?.destination || '',
+        address: trip.accommodation.address || '',
+        neighborhood: trip.accommodation.neighborhood || '',
+        zipCode: trip.accommodation.zipCode || '',
+        providerPlaceId: trip.accommodation.providerPlaceId || '',
+        latitude: trip.accommodation.latitude ?? undefined,
+        longitude: trip.accommodation.longitude ?? undefined,
+        checkInDate: trip.accommodation.checkInDate || (trip.accommodation.checkInDateTime ? trip.accommodation.checkInDateTime.split('T')[0] : ''),
+        checkInTime: trip.accommodation.checkInTime || '',
+        checkOutDate: trip.accommodation.checkOutDate || (trip.accommodation.checkOutDateTime ? trip.accommodation.checkOutDateTime.split('T')[0] : ''),
+        checkOutTime: trip.accommodation.checkOutTime || '',
+        isBase: true,
+      }];
     } else {
-      setAccName('');
-      setAccAddress('');
-      setAccNeighborhood('');
-      setAccZipCode('');
-      setAccCheckInDate(trip?.startDate ? trip.startDate.split('T')[0] : '');
-      setAccCheckInTime('14:00');
-      setAccCheckOutDate(trip?.endDate ? trip.endDate.split('T')[0] : '');
-      setAccCheckOutTime('11:00');
-      setAccProviderPlaceId('');
-      setAccLatitude(undefined);
-      setAccLongitude(undefined);
+      list = [{
+        name: '',
+        city: tripDestinations[0]?.name || trip?.destination || '',
+        isBase: true,
+        checkInDate: trip?.startDate ? trip.startDate.split('T')[0] : '',
+        checkInTime: '14:00',
+        checkOutDate: trip?.endDate ? trip.endDate.split('T')[0] : '',
+        checkOutTime: '11:00',
+      }];
     }
+    setMultiAccommodations(list);
+    setSelectedAccIndex(0);
+    syncAccToForm(list[0]);
     setAccSearchQuery('');
     setAccSearchResults([]);
     setAccommodationDrawerOpen(true);
+  };
+
+  const handleSelectHotelTab = (index: number) => {
+    const updated = [...multiAccommodations];
+    updated[selectedAccIndex] = getFormAsAcc(updated[selectedAccIndex]);
+    setMultiAccommodations(updated);
+    setSelectedAccIndex(index);
+    syncAccToForm(updated[index]);
+    setAccSearchQuery('');
+    setAccSearchResults([]);
+  };
+
+  const handleAddHotel = () => {
+    const updated = [...multiAccommodations];
+    updated[selectedAccIndex] = getFormAsAcc(updated[selectedAccIndex]);
+    const nextCity = tripDestinations[updated.length]?.name || '';
+    const newHotel = {
+      name: '',
+      city: nextCity,
+      isBase: false,
+      checkInDate: trip?.startDate ? trip.startDate.split('T')[0] : '',
+      checkInTime: '14:00',
+      checkOutDate: trip?.endDate ? trip.endDate.split('T')[0] : '',
+      checkOutTime: '11:00',
+    };
+    updated.push(newHotel);
+    setMultiAccommodations(updated);
+    setSelectedAccIndex(updated.length - 1);
+    syncAccToForm(newHotel);
+    setAccSearchQuery('');
+    setAccSearchResults([]);
+  };
+
+  const handleRemoveHotel = (index: number) => {
+    if (multiAccommodations.length <= 1) {
+      alert('A viagem deve ter ao menos uma hospedagem ou ser excluída completamente.');
+      return;
+    }
+    const filtered = multiAccommodations.filter((_, i) => i !== index);
+    if (!filtered.some(a => a.isBase)) {
+      filtered[0].isBase = true;
+    }
+    setMultiAccommodations(filtered);
+    const newIdx = Math.min(selectedAccIndex, filtered.length - 1);
+    setSelectedAccIndex(newIdx);
+    syncAccToForm(filtered[newIdx]);
+  };
+
+  const handleSetBaseHotel = (index: number) => {
+    const updated = multiAccommodations.map((a, i) => ({
+      ...a,
+      isBase: i === index,
+    }));
+    setMultiAccommodations(updated);
   };
 
   const handleSearchAccPlaces = async (e: React.FormEvent) => {
@@ -542,49 +696,79 @@ export default function TripDetailPage() {
 
   const handleSaveAccommodation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accName.trim()) {
-      alert('O nome da hospedagem é obrigatório.');
+
+    const currentList = [...multiAccommodations];
+    currentList[selectedAccIndex] = getFormAsAcc(currentList[selectedAccIndex]);
+
+    const validList = currentList.filter(a => a.name && a.name.trim().length > 0);
+    if (validList.length === 0) {
+      alert('O nome do hotel é obrigatório para salvar.');
       return;
     }
+
+    // Ensure base hotel is set
+    let baseAcc = validList.find(a => a.isBase) || validList[0];
+    validList.forEach(a => {
+      a.isBase = a === baseAcc;
+    });
+
     setIsSavingAcc(true);
     try {
+      // 1. Salva hotel base no Core para cálculo de trajetos no Dia 1
       const payload: any = {
-        name: accName.trim(),
-        address: accAddress.trim() || undefined,
-        neighborhood: accNeighborhood.trim() || undefined,
-        zipCode: accZipCode.trim() || undefined,
-        providerPlaceId: accProviderPlaceId.trim() || undefined,
-        latitude: accLatitude,
-        longitude: accLongitude,
-        checkInDate: accCheckInDate || undefined,
-        checkInTime: accCheckInTime || undefined,
-        checkOutDate: accCheckOutDate || undefined,
-        checkOutTime: accCheckOutTime || undefined,
+        name: baseAcc.name.trim(),
+        address: baseAcc.address?.trim() || undefined,
+        neighborhood: baseAcc.neighborhood?.trim() || undefined,
+        zipCode: baseAcc.zipCode?.trim() || undefined,
+        providerPlaceId: baseAcc.providerPlaceId?.trim() || undefined,
+        latitude: baseAcc.latitude,
+        longitude: baseAcc.longitude,
+        checkInDate: baseAcc.checkInDate || undefined,
+        checkInTime: baseAcc.checkInTime || undefined,
+        checkOutDate: baseAcc.checkOutDate || undefined,
+        checkOutTime: baseAcc.checkOutTime || undefined,
       };
-      if (accCheckInDate) {
-        payload.checkInDateTime = new Date(`${accCheckInDate}T${accCheckInTime || '14:00'}:00`).toISOString();
+      if (baseAcc.checkInDate) {
+        payload.checkInDateTime = new Date(`${baseAcc.checkInDate}T${baseAcc.checkInTime || '14:00'}:00`).toISOString();
       }
-      if (accCheckOutDate) {
-        payload.checkOutDateTime = new Date(`${accCheckOutDate}T${accCheckOutTime || '11:00'}:00`).toISOString();
+      if (baseAcc.checkOutDate) {
+        payload.checkOutDateTime = new Date(`${baseAcc.checkOutDate}T${baseAcc.checkOutTime || '11:00'}:00`).toISOString();
       }
       await upsertTripAccommodation(tripId, payload);
-      alert('Hospedagem salva com sucesso e deslocamentos recalculados!');
+
+      // 2. Salva lista multi-hotel completa em preferences.accommodations
+      const currentPreferences = trip?.preferences || {};
+      await updateTrip(tripId, {
+        preferences: {
+          ...currentPreferences,
+          accommodations: validList,
+        },
+      });
+
+      alert(`Hospedagens salvas com sucesso (${validList.length} ${validList.length === 1 ? 'hotel' : 'hotéis'})! Hotel base sincronizado para cálculo de rotas.`);
       setAccommodationDrawerOpen(false);
       fetchTripDetails();
     } catch (err: any) {
       console.error('Error saving accommodation:', err);
-      alert(err.response?.data?.message || 'Erro ao salvar hospedagem.');
+      alert(err.response?.data?.message || 'Erro ao salvar hospedagens.');
     } finally {
       setIsSavingAcc(false);
     }
   };
 
   const handleDeleteAccommodation = async () => {
-    if (!window.confirm('Deseja realmente remover a hospedagem desta viagem?')) return;
+    if (!window.confirm('Deseja realmente remover as hospedagens desta viagem?')) return;
     setIsSavingAcc(true);
     try {
       await deleteTripAccommodation(tripId);
-      alert('Hospedagem removida com sucesso!');
+      const currentPreferences = trip?.preferences || {};
+      await updateTrip(tripId, {
+        preferences: {
+          ...currentPreferences,
+          accommodations: [],
+        },
+      });
+      alert('Hospedagens removidas com sucesso!');
       setAccommodationDrawerOpen(false);
       fetchTripDetails();
     } catch (err: any) {
@@ -863,11 +1047,15 @@ export default function TripDetailPage() {
       {/* Page Header */}
       <PageHeader
         category="GESTOR DE ROTEIRO"
-        title={trip?.title || trip?.destination || 'Detalhes da Viagem'}
-        subtitle={`Destino: ${trip?.destination || 'N/D'} • Criado por ${trip?.user?.fullName || 'Usuário'} (${trip?.user?.email || ''})`}
+        title={trip ? formatTripDestinationTitle(trip).formattedDestination : 'Detalhes da Viagem'}
+        subtitle={
+          trip
+            ? `${formatTripDestinationTitle(trip).customTitle} • ${getTripDaysCount(trip) || 0} dias • Criado por ${trip?.user?.fullName || 'Usuário'} (${trip?.user?.email || ''})`
+            : ''
+        }
         breadcrumbs={[
           { label: 'Viagens', href: '/trips' },
-          { label: trip?.destination || 'Roteiro' }
+          { label: trip ? formatTripDestinationTitle(trip).formattedDestination : 'Roteiro' }
         ]}
         actions={
           <div className="flex items-center gap-3">
@@ -999,26 +1187,31 @@ export default function TripDetailPage() {
             </Card>
           </div>
 
-          {/* Multi-destinos banner if present in preferences */}
-          {Array.isArray(trip.preferences?.destinations) && trip.preferences.destinations.length > 0 && (
+          {/* Multi-destinos banner if present (only for >= 2 destinations) */}
+          {tripDestinations.length >= 2 && (
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-[#001F5B] shrink-0" />
                 <span className="font-extrabold text-[#001F5B] uppercase text-[10px] tracking-wider">
-                  Rota Multi-Destinos ({trip.preferences.destinations.length} cidades):
+                  Rota Multi-Destinos ({tripDestinations.length} cidades):
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {trip.preferences.destinations.map((dest: any, idx: number) => (
+                {tripDestinations.map((dest: any, idx: number) => (
                   <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200/80 font-semibold text-slate-800 text-[11px] shadow-2xs">
                     <MapPin className="w-3 h-3 text-[#FF6A00]" />
-                    <span>{dest.name || dest.city}</span>
+                    <span>{dest.name}</span>
+                    {dest.days && (
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1 py-0.2 rounded">
+                        {dest.days} {dest.days === 1 ? 'dia' : 'dias'}
+                      </span>
+                    )}
                     {dest.arrivalDate && (
                       <span className="text-[9px] text-slate-400 font-normal">
                         ({formatDatePT(dest.arrivalDate)}{dest.arrivalTime ? ` ${dest.arrivalTime}` : ''} → {dest.departureDate ? formatDatePT(dest.departureDate) : ''}{dest.departureTime ? ` ${dest.departureTime}` : ''})
                       </span>
                     )}
-                    {idx < (trip.preferences?.destinations?.length ?? 0) - 1 && (
+                    {idx < tripDestinations.length - 1 && (
                       <ChevronRight className="w-3 h-3 text-slate-300 ml-1" />
                     )}
                   </span>
@@ -1046,10 +1239,10 @@ export default function TripDetailPage() {
               <div className="p-4 border-b border-slate-100 bg-[#001F5B]/5 flex items-center justify-between">
                 <h3 className="font-extrabold text-[#001F5B] text-xs uppercase tracking-wider flex items-center gap-2">
                   <Hotel className="w-4 h-4 text-[#001F5B]" />
-                  Hospedagem
+                  Hospedagens {Array.isArray(trip.preferences?.accommodations) && trip.preferences.accommodations.length > 1 ? `(${trip.preferences.accommodations.length})` : ''}
                 </h3>
                 <div className="flex items-center gap-2">
-                  {trip.accommodation && (
+                  {(trip.accommodation || (Array.isArray(trip.preferences?.accommodations) && trip.preferences.accommodations.length > 0)) && (
                     <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">
                       Confirmada
                     </span>
@@ -1060,12 +1253,43 @@ export default function TripDetailPage() {
                     onClick={handleOpenAccommodation}
                     className="text-[10px] h-6 px-2 font-bold text-[#001F5B] border-[#001F5B]/20 hover:bg-[#001F5B]/10 cursor-pointer"
                   >
-                    {trip.accommodation ? 'Editar' : 'Cadastrar'}
+                    {(trip.accommodation || (Array.isArray(trip.preferences?.accommodations) && trip.preferences.accommodations.length > 0)) ? 'Editar' : 'Cadastrar'}
                   </Button>
                 </div>
               </div>
               <CardContent className="p-4">
-                {trip.accommodation ? (
+                {Array.isArray(trip.preferences?.accommodations) && trip.preferences.accommodations.length > 0 ? (
+                  <div className="space-y-3">
+                    {trip.preferences.accommodations.map((acc: any, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-xl border border-slate-150 bg-slate-50/50 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <strong className="text-slate-900 text-xs font-bold truncate block">{acc.name}</strong>
+                          {acc.isBase && (
+                            <span className="text-[9px] font-extrabold text-[#001F5B] bg-[#001F5B]/10 border border-[#001F5B]/20 px-1.5 py-0.5 rounded shrink-0">
+                              Base (Dia 1)
+                            </span>
+                          )}
+                        </div>
+                        {acc.city && (
+                          <div className="text-[10px] text-slate-600 font-semibold flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-[#FF6A00]" />
+                            {acc.city}
+                          </div>
+                        )}
+                        {acc.address && (
+                          <p className="text-[10px] text-slate-500 truncate">{acc.address}</p>
+                        )}
+                        {(acc.checkInDate || acc.checkOutDate) && (
+                          <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-1 border-t border-slate-200/50">
+                            <span>In: {acc.checkInDate ? formatDatePT(acc.checkInDate) : 'N/D'}</span>
+                            <span>•</span>
+                            <span>Out: {acc.checkOutDate ? formatDatePT(acc.checkOutDate) : 'N/D'}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : trip.accommodation ? (
                   <div className="space-y-2 text-xs">
                     <div className="font-bold text-slate-900 text-sm">{trip.accommodation.name}</div>
                     {trip.accommodation.address && (
@@ -1131,17 +1355,36 @@ export default function TripDetailPage() {
                   Proprietário da Viagem
                 </h3>
               </div>
-              <CardContent className="p-5 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-[#001F5B]/5 border border-[#001F5B]/10 flex items-center justify-center font-bold text-[#001F5B] uppercase text-sm shrink-0">
-                  {trip.user?.fullName ? trip.user.fullName.substring(0, 2) : 'US'}
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-[#001F5B]/5 border border-[#001F5B]/10 flex items-center justify-center font-bold text-[#001F5B] uppercase text-sm shrink-0">
+                    {trip.user?.fullName ? trip.user.fullName.substring(0, 2) : 'US'}
+                  </div>
+                  <div className="min-w-0">
+                    <strong className="text-slate-800 text-xs font-bold block truncate">
+                      {trip.user?.fullName || 'Usuário Sem Nome'}
+                    </strong>
+                    <span className="text-[10px] text-slate-400 font-medium block truncate mt-0.5">
+                      {trip.user?.email}
+                    </span>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <strong className="text-slate-800 text-xs font-bold block truncate">
-                    {trip.user?.fullName || 'Usuário Sem Nome'}
-                  </strong>
-                  <span className="text-[10px] text-slate-400 font-medium block truncate mt-0.5">
-                    {trip.user?.email}
-                  </span>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">WhatsApp</span>
+                  {trip.user?.phone ? (
+                    <a
+                      href={`https://wa.me/${trip.user.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-600 hover:text-emerald-700 font-bold inline-flex items-center gap-1.5 text-[11px] hover:underline"
+                    >
+                      <Phone className="w-3 h-3 text-emerald-500" />
+                      {trip.user.phone}
+                    </a>
+                  ) : (
+                    <span className="text-slate-400 text-[11px] italic">Sem WhatsApp cadastrado</span>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1935,174 +2178,324 @@ export default function TripDetailPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Drawer: Hospedagem (Create / Edit / Delete) */}
+      {/* Drawer: Hospedagem (Create / Edit / Delete Multi-Hotel) */}
       <Sheet open={accommodationDrawerOpen} onOpenChange={setAccommodationDrawerOpen}>
-        <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-md md:max-w-lg p-0 flex flex-col h-full shadow-2xl z-50">
+        <SheetContent side="right" className="bg-white border-l border-slate-200 w-full sm:max-w-2xl md:max-w-4xl p-0 flex flex-col h-full shadow-2xl z-50">
           <form onSubmit={handleSaveAccommodation} className="flex flex-col h-full">
-            <div className="p-6 border-b border-slate-100 bg-[#001F5B] text-white shrink-0">
-              <h2 className="font-extrabold text-base text-white flex items-center gap-2">
-                <Hotel className="w-5 h-5 text-amber-400" />
-                {trip?.accommodation ? 'Gerenciar Hospedagem' : 'Cadastrar Hospedagem'}
-              </h2>
-              <p className="text-white/70 text-xs mt-1">
-                Configure a hospedagem oficial da viagem. Os deslocamentos do Dia 1 serão calculados a partir dela.
-              </p>
+            <div className="p-5 border-b border-slate-100 bg-[#001F5B] text-white shrink-0 flex items-center justify-between">
+              <div>
+                <h2 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <Hotel className="w-5 h-5 text-amber-400" />
+                  Gerenciador de Hospedagens Multi-Hotel
+                </h2>
+                <p className="text-white/70 text-xs mt-0.5">
+                  Cadastre os hotéis da viagem por destino. O Hotel Base é usado para calcular deslocamentos no Dia 1.
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Cadastrados</span>
+                <span className="text-sm font-extrabold text-white">{multiAccommodations.length} {multiAccommodations.length === 1 ? 'Hotel' : 'Hotéis'}</span>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Google Places search helper for Accommodation */}
-              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
-                <span className="text-[10px] font-bold text-[#001F5B] uppercase tracking-wider block">
-                  Buscar Hotel no Google Places (Opcional)
-                </span>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Ex: Hotel Bernini Rome..."
-                    value={accSearchQuery}
-                    onChange={(e) => setAccSearchQuery(e.target.value)}
-                    className="h-9 text-xs border-slate-200 rounded-lg flex-1 bg-white"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleSearchAccPlaces}
-                    disabled={isSearchingAccPlaces}
-                    className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-3 h-9 text-xs cursor-pointer"
-                  >
-                    {isSearchingAccPlaces ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
-                  </Button>
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              {/* Left Column: Destinations & Hotel List */}
+              <div className="w-full md:w-80 border-r border-slate-200/80 bg-slate-50/70 p-4 space-y-5 overflow-y-auto shrink-0">
+                {/* Resumo dos Trechos / Destinos */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-[#001F5B] uppercase tracking-wider block">
+                    Trechos da Viagem
+                  </span>
+                  {tripDestinations.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {tripDestinations.map((dest, idx) => (
+                        <div key={idx} className="p-2 bg-white border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+                          <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-[#FF6A00]" />
+                            {dest.name}
+                          </span>
+                          {dest.days && (
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {dest.days} {dest.days === 1 ? 'dia' : 'dias'}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                      {trip?.destination || 'Destino único'}
+                    </div>
+                  )}
                 </div>
 
-                {accSearchResults.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto space-y-2 pt-2 border-t border-slate-200/60">
-                    {accSearchResults.map((place) => (
-                      <div
-                        key={place.providerPlaceId}
-                        className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs hover:border-[#FF6A00]/50 transition-colors"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <strong className="text-slate-800 text-xs block truncate">{place.name}</strong>
-                          <span className="text-[10px] text-slate-400 block truncate">{place.formattedAddress}</span>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleSelectAccPlace(place)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold h-6 px-2 rounded-md shrink-0 cursor-pointer"
+                {/* Hotéis na Viagem */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#001F5B] uppercase tracking-wider block">
+                      Hotéis ({multiAccommodations.length})
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddHotel}
+                      className="text-[10px] h-6 px-2 font-bold bg-[#001F5B] hover:bg-[#FF6A00] text-white cursor-pointer rounded-md flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Adicionar Hotel
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {multiAccommodations.map((acc, idx) => {
+                      const isSelected = idx === selectedAccIndex;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => handleSelectHotelTab(idx)}
+                          className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1 relative ${
+                            isSelected
+                              ? 'border-[#001F5B] bg-white ring-2 ring-[#001F5B]/10 shadow-xs'
+                              : 'border-slate-200 bg-white/70 hover:bg-white hover:border-slate-300'
+                          }`}
                         >
-                          Usar
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="flex items-start justify-between gap-2">
+                            <strong className="text-xs font-bold text-slate-900 block truncate">
+                              {isSelected ? (accName || `Hotel #${idx + 1}`) : (acc.name || `Hotel #${idx + 1}`)}
+                            </strong>
+                            {multiAccommodations.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveHotel(idx);
+                                }}
+                                className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer transition-colors"
+                                title="Remover este hotel"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            {acc.isBase && (
+                              <span className="text-[9px] font-extrabold text-[#001F5B] bg-[#001F5B]/10 border border-[#001F5B]/20 px-1.5 py-0.2 rounded">
+                                Hotel Base (Dia 1)
+                              </span>
+                            )}
+                            {(isSelected ? accCity : acc.city) && (
+                              <span className="text-[9px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                                <MapPin className="w-2.5 h-2.5 text-[#FF6A00]" />
+                                {isSelected ? accCity : acc.city}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Active Hotel Form */}
+              <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Editando Hotel #{selectedAccIndex + 1} de {multiAccommodations.length}
+                    </span>
+                    <h3 className="font-bold text-slate-800 text-sm">
+                      {accName || 'Novo Hotel'}
+                    </h3>
+                  </div>
+
+                  {multiAccommodations[selectedAccIndex]?.isBase ? (
+                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Hotel Base Oficial (Dia 1)
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetBaseHotel(selectedAccIndex)}
+                      className="text-[10px] h-7 px-2.5 font-bold text-[#001F5B] border-[#001F5B]/30 hover:bg-[#001F5B]/10 cursor-pointer flex items-center gap-1"
+                    >
+                      <Crown className="w-3 h-3 text-amber-500" />
+                      Definir como Hotel Base
+                    </Button>
+                  )}
+                </div>
+
+                {/* Google Places search helper for Accommodation */}
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                  <span className="text-[10px] font-bold text-[#001F5B] uppercase tracking-wider block">
+                    Buscar Hotel no Google Places (Opcional)
+                  </span>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Ex: Hotel Bernini Rome..."
+                      value={accSearchQuery}
+                      onChange={(e) => setAccSearchQuery(e.target.value)}
+                      className="h-9 text-xs border-slate-200 rounded-lg flex-1 bg-white"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleSearchAccPlaces}
+                      disabled={isSearchingAccPlaces}
+                      className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-3 h-9 text-xs cursor-pointer"
+                    >
+                      {isSearchingAccPlaces ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                    </Button>
+                  </div>
+
+                  {accSearchResults.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto space-y-2 pt-2 border-t border-slate-200/60">
+                      {accSearchResults.map((place) => (
+                        <div
+                          key={place.providerPlaceId}
+                          className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs hover:border-[#FF6A00]/50 transition-colors"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <strong className="text-slate-800 text-xs block truncate">{place.name}</strong>
+                            <span className="text-[10px] text-slate-400 block truncate">{place.formattedAddress}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSelectAccPlace(place)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold h-6 px-2 rounded-md shrink-0 cursor-pointer"
+                          >
+                            Usar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nome do Hotel / Acomodação *</label>
+                    <Input
+                      required
+                      type="text"
+                      placeholder="Ex: Hotel Nazionale"
+                      value={accName}
+                      onChange={(e) => setAccName(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Cidade / Destino Correspondente</label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: Roma"
+                      value={accCity}
+                      onChange={(e) => setAccCity(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Endereço Completo</label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: Piazza di Monte Citorio, 131, 00186 Roma RM"
+                    value={accAddress}
+                    onChange={(e) => setAccAddress(e.target.value)}
+                    className="h-10 border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bairro</label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: Centro Storico"
+                      value={accNeighborhood}
+                      onChange={(e) => setAccNeighborhood(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CEP / Código Postal</label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: 00186"
+                      value={accZipCode}
+                      onChange={(e) => setAccZipCode(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Data Check-in</label>
+                    <Input
+                      type="date"
+                      value={accCheckInDate}
+                      onChange={(e) => setAccCheckInDate(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horário Check-in</label>
+                    <Input
+                      type="time"
+                      value={accCheckInTime}
+                      onChange={(e) => setAccCheckInTime(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Data Check-out</label>
+                    <Input
+                      type="date"
+                      value={accCheckOutDate}
+                      onChange={(e) => setAccCheckOutDate(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horário Check-out</label>
+                    <Input
+                      type="time"
+                      value={accCheckOutTime}
+                      onChange={(e) => setAccCheckOutTime(e.target.value)}
+                      className="h-10 border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                {accProviderPlaceId && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] text-emerald-800 space-y-1">
+                    <div className="font-bold flex items-center gap-1">
+                      <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                      Place ID Vinculado
+                    </div>
+                    <div className="text-slate-600 truncate">ID: {accProviderPlaceId}</div>
+                    {accLatitude && accLongitude && (
+                      <div className="text-slate-500">Coordenadas: {accLatitude.toFixed(5)}, {accLongitude.toFixed(5)}</div>
+                    )}
                   </div>
                 )}
               </div>
-
-              {/* Form Fields */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nome do Hotel / Acomodação *</label>
-                <Input
-                  required
-                  type="text"
-                  placeholder="Ex: Hotel Nazionale"
-                  value={accName}
-                  onChange={(e) => setAccName(e.target.value)}
-                  className="h-10 border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Endereço Completo</label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Piazza di Monte Citorio, 131, 00186 Roma RM"
-                  value={accAddress}
-                  onChange={(e) => setAccAddress(e.target.value)}
-                  className="h-10 border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bairro</label>
-                  <Input
-                    type="text"
-                    placeholder="Ex: Centro Storico"
-                    value={accNeighborhood}
-                    onChange={(e) => setAccNeighborhood(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CEP / Código Postal</label>
-                  <Input
-                    type="text"
-                    placeholder="Ex: 00186"
-                    value={accZipCode}
-                    onChange={(e) => setAccZipCode(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Data Check-in</label>
-                  <Input
-                    type="date"
-                    value={accCheckInDate}
-                    onChange={(e) => setAccCheckInDate(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horário Check-in</label>
-                  <Input
-                    type="time"
-                    value={accCheckInTime}
-                    onChange={(e) => setAccCheckInTime(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Data Check-out</label>
-                  <Input
-                    type="date"
-                    value={accCheckOutDate}
-                    onChange={(e) => setAccCheckOutDate(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horário Check-out</label>
-                  <Input
-                    type="time"
-                    value={accCheckOutTime}
-                    onChange={(e) => setAccCheckOutTime(e.target.value)}
-                    className="h-10 border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              {accProviderPlaceId && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] text-emerald-800 space-y-1">
-                  <div className="font-bold flex items-center gap-1">
-                    <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                    Place ID Vinculado
-                  </div>
-                  <div className="text-slate-600 truncate">ID: {accProviderPlaceId}</div>
-                  {accLatitude && accLongitude && (
-                    <div className="text-slate-500">Coordenadas: {accLatitude.toFixed(5)}, {accLongitude.toFixed(5)}</div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
-              {trip?.accommodation ? (
+              {(trip?.accommodation || (Array.isArray(trip?.preferences?.accommodations) && trip.preferences.accommodations.length > 0)) ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -2111,7 +2504,7 @@ export default function TripDetailPage() {
                   className="border-red-200 hover:bg-red-50 text-red-600 font-semibold cursor-pointer rounded-lg px-3 h-10 text-xs flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  Remover
+                  Remover Todas
                 </Button>
               ) : (
                 <Button
@@ -2128,7 +2521,7 @@ export default function TripDetailPage() {
                 disabled={isSavingAcc}
                 className="bg-[#001F5B] hover:bg-[#FF6A00] text-white font-semibold rounded-lg px-5 h-10 text-xs cursor-pointer shadow-sm"
               >
-                {isSavingAcc ? 'Salvando...' : 'Salvar Hospedagem'}
+                {isSavingAcc ? 'Salvando...' : 'Salvar Hospedagens'}
               </Button>
             </div>
           </form>

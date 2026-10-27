@@ -8,6 +8,8 @@ import {
   updateTrip,
   deleteTrip,
   listUsersForSelection,
+  getTripDaysCount,
+  formatTripDestinationTitle,
   Trip,
   TripStatus
 } from '@/services/trips.service';
@@ -82,6 +84,15 @@ export default function TripsAdminPage() {
   const [userSearchText, setUserSearchText] = useState('');
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
+  // Multi-destination form state
+  const [isMultiDestination, setIsMultiDestination] = useState(false);
+  const [destinationLegs, setDestinationLegs] = useState<
+    Array<{ name: string; daysCount: number; arrivalDate?: string; departureDate?: string }>
+  >([
+    { name: '', daysCount: 3 },
+    { name: '', daysCount: 3 },
+  ]);
+
   // Load Trips
   const fetchTrips = useCallback(async () => {
     setIsLoading(true);
@@ -143,24 +154,73 @@ export default function TripsAdminPage() {
 
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUserId || !formDestination) return;
+    if (!selectedUserId) {
+      alert('Selecione um cliente / usuário da lista.');
+      return;
+    }
+
+    let finalDestination = formDestination.trim();
+    let finalLegs: Array<{ name: string; daysCount: number; arrivalDate?: string; departureDate?: string }> = [];
+
+    if (isMultiDestination) {
+      finalLegs = destinationLegs
+        .map((l) => ({ ...l, name: l.name.trim() }))
+        .filter((l) => l.name.length > 0);
+
+      if (finalLegs.length === 0) {
+        alert('Informe ao menos uma cidade com dias para a viagem multi-destino.');
+        return;
+      }
+
+      finalDestination = finalLegs.map((l) => l.name).join(', ');
+    }
+
+    if (!finalDestination) {
+      alert('Informe o destino da viagem.');
+      return;
+    }
 
     setIsSaving(true);
     try {
-      let parsedPrefs = {};
+      let parsedPrefs: any = {};
       try {
-        parsedPrefs = JSON.parse(formPreferences);
+        parsedPrefs = JSON.parse(formPreferences || '{}');
       } catch (err) {
         // Fallback if raw string
         parsedPrefs = { raw: formPreferences };
       }
 
+      if (isMultiDestination && finalLegs.length > 0) {
+        parsedPrefs.destinations = finalLegs.map((l) => ({
+          name: l.name,
+          city: l.name,
+          daysCount: Number(l.daysCount) || 1,
+          numberOfDays: Number(l.daysCount) || 1,
+          days: Number(l.daysCount) || 1,
+          arrivalDate: l.arrivalDate || undefined,
+          departureDate: l.departureDate || undefined,
+        }));
+      }
+
+      const safeStartDate = formStartDate ? `${formStartDate}T00:00:00.000Z` : undefined;
+      let safeEndDate = formEndDate ? `${formEndDate}T00:00:00.000Z` : undefined;
+
+      // Auto-compute safeEndDate if multi-destination and startDate provided without endDate
+      if (safeStartDate && !safeEndDate && isMultiDestination) {
+        const totalDays = finalLegs.reduce((acc, l) => acc + (Number(l.daysCount) || 1), 0);
+        if (totalDays > 0) {
+          const s = new Date(safeStartDate);
+          const e = new Date(s.getTime() + (totalDays - 1) * 86400000);
+          safeEndDate = e.toISOString();
+        }
+      }
+
       await createTripForUser(selectedUserId, {
-        destination: formDestination,
-        title: formTitle || formDestination || 'Roteiro de Viagem',
-        startDate: formStartDate || undefined,
-        endDate: formEndDate || undefined,
-        preferences: parsedPrefs
+        destination: finalDestination,
+        title: formTitle.trim() || finalDestination || 'Roteiro de Viagem',
+        startDate: safeStartDate,
+        endDate: safeEndDate,
+        preferences: parsedPrefs,
       });
 
       setIsCreateOpen(false);
@@ -168,7 +228,8 @@ export default function TripsAdminPage() {
       fetchTrips();
     } catch (err: any) {
       console.error('Failed to create trip:', err);
-      alert('Erro ao criar viagem para o usuário.');
+      const msg = err.response?.data?.message || err.message || 'Erro ao criar viagem para o usuário.';
+      alert(`Erro ao criar viagem: ${msg}`);
     } finally {
       setIsSaving(false);
     }
@@ -243,6 +304,11 @@ export default function TripsAdminPage() {
     setFormEndDate('');
     setFormStatus('DRAFT');
     setFormPreferences('{\n  "focus": "cultural",\n  "pace": "medium"\n}');
+    setIsMultiDestination(false);
+    setDestinationLegs([
+      { name: '', daysCount: 3 },
+      { name: '', daysCount: 3 },
+    ]);
   };
 
   const hasActiveFilters = Boolean(destinationQuery.trim() || statusFilter !== 'ALL' || premiumFilter !== 'ALL');
@@ -378,11 +444,27 @@ export default function TripsAdminPage() {
                   <tr key={trip.id} className="hover:bg-slate-50/60 transition-colors">
                     {/* Destination & Title */}
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        {trip.destination}
-                      </div>
-                      <div className="text-[11px] text-slate-500">{trip.title || 'Roteiro de Viagem'}</div>
+                      {(() => {
+                        const { formattedDestination, customTitle, isMulti } = formatTripDestinationTitle(trip);
+                        return (
+                          <div>
+                            <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate max-w-[280px]" title={formattedDestination}>
+                                {formattedDestination}
+                              </span>
+                              {isMulti && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60 shrink-0">
+                                  Multi
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate max-w-[280px]" title={customTitle}>
+                              {customTitle}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* User */}
@@ -398,8 +480,11 @@ export default function TripsAdminPage() {
                     </td>
 
                     {/* Days Count */}
-                    <td className="px-4 py-3 text-center font-semibold">
-                      {(trip as any).daysCount || '-'} dias
+                    <td className="px-4 py-3 text-center font-semibold text-slate-800">
+                      {(() => {
+                        const count = getTripDaysCount(trip);
+                        return count !== null ? `${count} ${count === 1 ? 'dia' : 'dias'}` : '- dias';
+                      })()}
                     </td>
 
                     {/* Status */}
@@ -536,6 +621,9 @@ export default function TripsAdminPage() {
                 required
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] text-slate-800"
               >
+                <option value="" disabled>
+                  {isSearchingUsers ? 'Buscando usuários...' : 'Selecione um cliente / usuário...'}
+                </option>
                 {usersList.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName} ({u.email})
@@ -544,18 +632,110 @@ export default function TripsAdminPage() {
               </select>
             </div>
 
-            {/* Destination */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Destino da Viagem *</label>
-              <Input
-                type="text"
-                placeholder="Ex: Paris, França ou Fernando de Noronha"
-                value={formDestination}
-                onChange={(e) => setFormDestination(e.target.value)}
-                required
-                className="text-xs h-9 bg-slate-50"
+            {/* Multi-destinos toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50/70 border border-blue-100">
+              <div className="space-y-0.5">
+                <label htmlFor="multi-dest-toggle" className="text-xs font-bold text-[#001F5B] cursor-pointer">
+                  Viagem com múltiplos destinos / cidades
+                </label>
+                <p className="text-[10px] text-slate-500">
+                  Permite dividir o roteiro em cidades diferentes com divisão de dias
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="multi-dest-toggle"
+                checked={isMultiDestination}
+                onChange={(e) => setIsMultiDestination(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-[#001F5B] focus:ring-[#001F5B] cursor-pointer"
               />
             </div>
+
+            {/* Destination inputs: single or multi */}
+            {!isMultiDestination ? (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Destino da Viagem *</label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Paris, França ou Fernando de Noronha"
+                  value={formDestination}
+                  onChange={(e) => setFormDestination(e.target.value)}
+                  required
+                  className="text-xs h-9 bg-slate-50"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-[#001F5B]" />
+                    Cidades & Divisão de Dias
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    Total: {destinationLegs.reduce((acc, l) => acc + (Number(l.daysCount) || 1), 0)} dias
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {destinationLegs.map((leg, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
+                      <div className="w-5 text-center text-[10px] font-bold text-slate-400">#{idx + 1}</div>
+                      <Input
+                        type="text"
+                        placeholder="Nome da Cidade (ex: Roma)"
+                        value={leg.name}
+                        onChange={(e) => {
+                          const updated = [...destinationLegs];
+                          updated[idx] = { ...updated[idx], name: e.target.value };
+                          setDestinationLegs(updated);
+                        }}
+                        className="text-xs h-8 flex-1"
+                        required
+                      />
+                      <div className="flex items-center gap-1 w-24">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={30}
+                          placeholder="Dias"
+                          value={leg.daysCount}
+                          onChange={(e) => {
+                            const updated = [...destinationLegs];
+                            updated[idx] = { ...updated[idx], daysCount: Math.max(1, parseInt(e.target.value, 10) || 1) };
+                            setDestinationLegs(updated);
+                          }}
+                          className="text-xs h-8 text-center"
+                          required
+                        />
+                        <span className="text-[10px] text-slate-400">dias</span>
+                      </div>
+                      {destinationLegs.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDestinationLegs(destinationLegs.filter((_, i) => i !== idx))}
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDestinationLegs([...destinationLegs, { name: '', daysCount: 3 }])}
+                  className="w-full text-xs h-8 border-dashed border-slate-300 text-[#001F5B] hover:bg-white cursor-pointer"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Adicionar outra cidade
+                </Button>
+              </div>
+            )}
 
             {/* Title */}
             <div className="space-y-1">

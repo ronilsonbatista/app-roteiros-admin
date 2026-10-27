@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +36,12 @@ export default function LoginPage() {
         throw new Error('Token de acesso não recebido da API.');
       }
 
-      // Save tokens in cookies (accessToken for 7 days, refreshToken for 30 days)
-      setCookie('accessToken', accessToken, 7);
+      // Save tokens in cookies (30 days if rememberMe, otherwise 1 day for session)
+      const tokenDays = rememberMe ? 30 : 1;
+      setCookie('accessToken', accessToken, tokenDays);
+      setCookie('rememberMe', rememberMe ? 'true' : 'false', tokenDays);
       if (refreshToken) {
-        setCookie('refreshToken', refreshToken, 30);
+        setCookie('refreshToken', refreshToken, rememberMe ? 30 : 7);
       }
 
       // Route to dashboard
@@ -245,6 +248,22 @@ export default function LoginPage() {
                     {showPassword ? 'Ocultar' : 'Mostrar'}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pl-0.5 pt-1">
+                <input
+                  type="checkbox"
+                  id="remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-[#001F5B] focus:ring-[#001F5B] cursor-pointer"
+                />
+                <Label
+                  htmlFor="remember-me"
+                  className="text-xs font-medium text-slate-600 cursor-pointer select-none"
+                >
+                  Manter conectado neste dispositivo
+                </Label>
               </div>
             </div>
             

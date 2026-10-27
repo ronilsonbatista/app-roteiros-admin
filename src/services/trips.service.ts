@@ -129,6 +129,7 @@ export interface Trip {
     id: string;
     email: string;
     fullName: string;
+    phone?: string | null;
     photoUrl?: string | null;
   } | null;
   days?: TripDay[];
@@ -233,6 +234,188 @@ export async function getTripDetails(id: string): Promise<Trip> {
   return response.data?.data || response.data;
 }
 
+// ==========================================
+// Formatting & Helpers for Trips & Itineraries
+// ==========================================
+
+const CONTINENT_MAP: Record<string, string> = {
+  // Europa
+  paris: 'Europa', franca: 'Europa', france: 'Europa',
+  roma: 'Europa', rome: 'Europa', italia: 'Europa', italy: 'Europa', florenc: 'Europa', florenca: 'Europa', florence: 'Europa',
+  veneza: 'Europa', venice: 'Europa', milao: 'Europa', milan: 'Europa', napoles: 'Europa', naples: 'Europa',
+  madrid: 'Europa', barcelona: 'Europa', sevilha: 'Europa', sevilla: 'Europa', espanha: 'Europa', spain: 'Europa',
+  lisboa: 'Europa', lisbon: 'Europa', porto: 'Europa', portugal: 'Europa',
+  londres: 'Europa', london: 'Europa', reino_unido: 'Europa', uk: 'Europa', inglaterra: 'Europa', england: 'Europa', edimburgo: 'Europa',
+  amsterda: 'Europa', amsterdam: 'Europa', holanda: 'Europa', netherlands: 'Europa',
+  berlim: 'Europa', berlin: 'Europa', munique: 'Europa', munich: 'Europa', alemanha: 'Europa', germany: 'Europa', frankfurt: 'Europa',
+  viena: 'Europa', vienna: 'Europa', austria: 'Europa',
+  praga: 'Europa', prague: 'Europa', rep_tcheca: 'Europa', czech: 'Europa',
+  budapeste: 'Europa', budapest: 'Europa', hungria: 'Europa', hungary: 'Europa',
+  atenas: 'Europa', athens: 'Europa', grecia: 'Europa', greece: 'Europa', santorini: 'Europa', mykonos: 'Europa',
+  zurique: 'Europa', zurich: 'Europa', genebra: 'Europa', geneva: 'Europa', suica: 'Europa', switzerland: 'Europa',
+  bruxelas: 'Europa', brussels: 'Europa', belgica: 'Europa', belgium: 'Europa',
+  dublin: 'Europa', irlanda: 'Europa', ireland: 'Europa',
+  copenhague: 'Europa', copenhagen: 'Europa', dinamarca: 'Europa',
+  estocolmo: 'Europa', stockholm: 'Europa', suecia: 'Europa',
+  oslo: 'Europa', noruega: 'Europa',
+  helsinque: 'Europa', helsinki: 'Europa', finlandia: 'Europa',
+  varsovia: 'Europa', warsaw: 'Europa', polonia: 'Europa',
+  europa: 'Europa', europe: 'Europa',
+
+  // Ásia
+  toquio: 'Ásia', tokyo: 'Ásia', quioto: 'Ásia', kyoto: 'Ásia', osaka: 'Ásia', japao: 'Ásia', japan: 'Ásia', hiroshima: 'Ásia',
+  seul: 'Ásia', seoul: 'Ásia', coreia: 'Ásia', korea: 'Ásia',
+  bangkok: 'Ásia', tailandia: 'Ásia', thailand: 'Ásia', phuket: 'Ásia', chiang_mai: 'Ásia',
+  singapura: 'Ásia', singapore: 'Ásia',
+  bali: 'Ásia', jakarta: 'Ásia', indonesia: 'Ásia',
+  pequim: 'Ásia', beijing: 'Ásia', xangai: 'Ásia', shanghai: 'Ásia', china: 'Ásia', hong_kong: 'Ásia',
+  taiwan: 'Ásia', taipei: 'Ásia',
+  hanoi: 'Ásia', vietna: 'Ásia', vietnam: 'Ásia',
+  dubai: 'Ásia', emirados: 'Ásia', uae: 'Ásia', doha: 'Ásia', qatar: 'Ásia',
+  india: 'Ásia', delhi: 'Ásia', mumbai: 'Ásia',
+  asia: 'Ásia',
+
+  // América do Sul
+  brasil: 'América do Sul', brazil: 'América do Sul', sao_paulo: 'América do Sul', rio_de_janeiro: 'América do Sul', salvador: 'América do Sul', florianopolis: 'América do Sul', noronha: 'América do Sul', gramado: 'América do Sul',
+  argentina: 'América do Sul', buenos_aires: 'América do Sul', bariloche: 'América do Sul', mendoza: 'América do Sul',
+  chile: 'América do Sul', santiago: 'América do Sul', atacama: 'América do Sul',
+  peru: 'América do Sul', lima: 'América do Sul', cusco: 'América do Sul', machu_picchu: 'América do Sul',
+  colombia: 'América do Sul', bogota: 'América do Sul', cartagena: 'América do Sul', medellin: 'América do Sul',
+  uruguai: 'América do Sul', montevideu: 'América do Sul', punta_del_este: 'América do Sul',
+
+  // América do Norte
+  nova_york: 'América do Norte', new_york: 'América do Norte', miami: 'América do Norte', orlando: 'América do Norte', los_angeles: 'América do Norte', san_francisco: 'América do Norte', las_vegas: 'América do Norte', chicago: 'América do Norte', eua: 'América do Norte', usa: 'América do Norte', estados_unidos: 'América do Norte',
+  toronto: 'América do Norte', vancouver: 'América do Norte', montreal: 'América do Norte', canada: 'América do Norte',
+  mexico: 'América do Norte', cancun: 'América do Norte',
+
+  // África
+  cairo: 'África', egito: 'África', egypt: 'África',
+  cidade_do_cabo: 'África', cape_town: 'África', africa_do_sul: 'África',
+  marrocos: 'África', morocco: 'África', marrakech: 'África', casablanca: 'África',
+
+  // Oceania
+  sydney: 'Oceania', melbourne: 'Oceania', australia: 'Oceania', nova_zelandia: 'Oceania', new_zealand: 'Oceania', auckland: 'Oceania'
+};
+
+function inferContinent(term: string): string | null {
+  const clean = term.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
+  for (const [key, cont] of Object.entries(CONTINENT_MAP)) {
+    if (clean.includes(key)) return cont;
+  }
+  return null;
+}
+
+/**
+ * Calcula a quantidade real de dias de uma viagem para exibição consistente
+ */
+export function getTripDaysCount(trip: Trip): number | null {
+  if (trip.days && trip.days.length > 0) return trip.days.length;
+  if (trip._count?.days && trip._count.days > 0) return trip._count.days;
+  if ((trip as any).numberOfDays) return (trip as any).numberOfDays;
+  if (trip.startDate && trip.endDate) {
+    const s = new Date(trip.startDate).getTime();
+    const e = new Date(trip.endDate).getTime();
+    if (!isNaN(s) && !isNaN(e) && e >= s) {
+      const diff = Math.round((e - s) / (1000 * 3600 * 24)) + 1;
+      if (diff > 0) return diff;
+    }
+  }
+  const dests = (trip.preferences as any)?.destinations;
+  if (Array.isArray(dests) && dests.length > 0) {
+    const sum = dests.reduce((acc: number, d: any) => {
+      const dDays = Number(d.numberOfDays || d.daysCount || d.days || 0);
+      return acc + (dDays > 0 ? dDays : 0);
+    }, 0);
+    if (sum > 0) return sum;
+  }
+  return null;
+}
+
+/**
+ * Formata destino e título de acordo com o padrão 2GO:
+ * Padrão: "Continente: Cidade1, Cidade2, ..." + subtítulo = título personalizado
+ * Fallback: "Multi-destino: Cidade1, Cidade2, ..." se continentes mistos
+ */
+export function formatTripDestinationTitle(trip: Trip): {
+  formattedDestination: string;
+  customTitle: string;
+  isMulti: boolean;
+  cities: string[];
+} {
+  const rawDest = (trip.destination || '').trim();
+  const customTitle = (trip.title || '').trim() || 'Roteiro de Viagem';
+
+  // 1. Extrai cidades de preferences.destinations ou do campo destination
+  let cities: string[] = [];
+  const prefDests = (trip.preferences as any)?.destinations;
+
+  if (Array.isArray(prefDests) && prefDests.length > 0) {
+    cities = prefDests
+      .map((d: any) => (d.name || d.city || '').trim())
+      .filter(Boolean);
+  } else if (rawDest) {
+    // Se já tiver formato "Continente: Cidade1, Cidade2", extrai
+    const colonSplit = rawDest.split(':');
+    const destBody = colonSplit.length > 1 ? colonSplit.slice(1).join(':') : rawDest;
+
+    cities = destBody
+      .split(/[→\->,/]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
+  if (cities.length === 0) {
+    return {
+      formattedDestination: rawDest || 'Destino não informado',
+      customTitle,
+      isMulti: false,
+      cities: [],
+    };
+  }
+
+  // 2. Se rawDest já começa com "Continente: ", preserve
+  if (rawDest.includes(':')) {
+    const parts = rawDest.split(':');
+    const prefix = parts[0].trim();
+    if (['Europa', 'Ásia', 'América do Sul', 'América do Norte', 'África', 'Oceania', 'Multi-destino'].includes(prefix)) {
+      return {
+        formattedDestination: rawDest,
+        customTitle,
+        isMulti: cities.length >= 2,
+        cities,
+      };
+    }
+  }
+
+  // 3. Infere continentes das cidades
+  const detectedContinents = new Set<string>();
+  cities.forEach((city) => {
+    const cont = inferContinent(city);
+    if (cont) detectedContinents.add(cont);
+  });
+
+  let prefix = 'Multi-destino';
+  if (detectedContinents.size === 1) {
+    prefix = Array.from(detectedContinents)[0];
+  } else if (detectedContinents.size === 0) {
+    // Tenta inferir pelo rawDest completo
+    const fallbackCont = inferContinent(rawDest);
+    prefix = fallbackCont || (cities.length > 1 ? 'Multi-destino' : 'Destino');
+  } else {
+    // Múltiplos continentes (ex: Ásia + Europa)
+    prefix = 'Multi-destino';
+  }
+
+  const formattedDestination = `${prefix}: ${cities.join(', ')}`;
+
+  return {
+    formattedDestination,
+    customTitle,
+    isMulti: cities.length >= 2,
+    cities,
+  };
+}
+
 /**
  * Create a new trip for a specific user
  */
@@ -244,7 +427,20 @@ export async function createTripForUser(userId: string, payload: {
   status?: TripStatus;
   preferences?: Record<string, any>;
 }): Promise<Trip> {
-  const response = await api.post(`/admin/users/${userId}/trips`, payload);
+  const safePayload = {
+    ...payload,
+    startDate: payload.startDate
+      ? payload.startDate.includes('T')
+        ? payload.startDate
+        : `${payload.startDate}T00:00:00.000Z`
+      : undefined,
+    endDate: payload.endDate
+      ? payload.endDate.includes('T')
+        ? payload.endDate
+        : `${payload.endDate}T00:00:00.000Z`
+      : undefined,
+  };
+  const response = await api.post(`/admin/users/${userId}/trips`, safePayload);
   return response.data?.data || response.data;
 }
 
