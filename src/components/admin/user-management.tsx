@@ -9,6 +9,7 @@ import {
   revokeUserSessions,
   getUserTrips,
   getUserTravelProfile,
+  updateUser,
   User,
   UserTrip,
   UserTravelProfile
@@ -37,7 +38,9 @@ import {
   ChevronRight,
   Eye,
   RefreshCw,
-  Users
+  Users,
+  Phone,
+  Check
 } from 'lucide-react';
 
 export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADMIN' }) {
@@ -63,6 +66,11 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
+  // Phone edit state
+  const [phoneInput, setPhoneInput] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [phoneSaveSuccess, setPhoneSaveSuccess] = useState(false);
+
   const fetchUsersList = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -85,6 +93,8 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
 
   const handleOpenDetails = async (userToView: User) => {
     setSelectedUser(userToView);
+    setPhoneInput(userToView.phone || '');
+    setPhoneSaveSuccess(false);
     setIsDetailsOpen(true);
     setIsDetailsLoading(true);
     setSelectedUserTrips([]);
@@ -101,6 +111,24 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
       console.error('Failed to load user detail sub-data:', err);
     } finally {
       setIsDetailsLoading(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!selectedUser) return;
+    setIsSavingPhone(true);
+    try {
+      const clean = phoneInput.trim() || undefined;
+      const updated = await updateUser(selectedUser.id, { phone: clean });
+      const newPhone = updated.phone !== undefined ? updated.phone : clean;
+      setSelectedUser((prev) => (prev ? { ...prev, phone: newPhone } : null));
+      setUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? { ...u, phone: newPhone } : u)));
+      setPhoneSaveSuccess(true);
+      setTimeout(() => setPhoneSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Erro ao salvar telefone');
+    } finally {
+      setIsSavingPhone(false);
     }
   };
 
@@ -226,7 +254,15 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
                 users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3 font-semibold text-slate-900">{u.fullName || 'Sem Nome'}</td>
-                    <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      <div>{u.email}</div>
+                      {u.phone && (
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3 text-emerald-600" />
+                          <span>{u.phone}</span>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono">
                       <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#001F5B]/10 text-[#001F5B]">
                         {u.role || 'USER'}
@@ -334,6 +370,49 @@ export default function UserManagement({ role = 'USER' }: { role?: 'USER' | 'ADM
                   <StatusBadge status={(selectedUser.blockedAt || (selectedUser as any).isBlocked) ? 'BLOCKED' : 'ACTIVE'} />
                 </div>
                 <p className="text-slate-500">{selectedUser.email}</p>
+
+                {/* Telefone / WhatsApp */}
+                <div className="pt-2 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-emerald-600" />
+                      WhatsApp / Telefone
+                    </span>
+                    {selectedUser.phone && (
+                      <a
+                        href={`https://wa.me/${selectedUser.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-emerald-600 hover:underline font-bold"
+                      >
+                        Abrir WhatsApp ↗
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ex: +5511999999999"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#001F5B] bg-white text-slate-800"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSavePhone}
+                      disabled={isSavingPhone}
+                      className="h-7 px-2.5 text-xs bg-[#001F5B] hover:bg-[#001744] text-white"
+                    >
+                      {isSavingPhone ? 'Salvando...' : phoneSaveSuccess ? 'Salvo!' : 'Salvar'}
+                    </Button>
+                  </div>
+                  {phoneSaveSuccess && (
+                    <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
+                      ✓ Telefone atualizado com sucesso!
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
                   <span className="text-[10px] font-mono text-slate-400">ID: {selectedUser.id}</span>
                   <Button

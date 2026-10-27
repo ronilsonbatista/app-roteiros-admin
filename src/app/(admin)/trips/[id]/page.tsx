@@ -228,7 +228,7 @@ export default function TripDetailPage() {
         arrivalTime: d.arrivalTime,
         departureDate: d.departureDate,
         departureTime: d.departureTime,
-        days: d.days,
+        days: d.days ?? d.daysCount ?? d.days_count,
       }));
     }
     if (Array.isArray(trip.preferences?.legs) && trip.preferences.legs.length > 0) {
@@ -236,11 +236,11 @@ export default function TripDetailPage() {
         name: l.destination || l.city || l.name || String(l),
         arrivalDate: l.startDate || l.arrivalDate,
         departureDate: l.endDate || l.departureDate,
-        days: l.days,
+        days: l.days ?? l.daysCount ?? l.days_count,
       }));
     }
-    if (trip.destination && (trip.destination.includes(',') || trip.destination.includes(' - ') || trip.destination.includes(' / '))) {
-      const rawCities = trip.destination.split(/[,/-]/).map(s => s.trim()).filter(Boolean);
+    if (trip.destination && (trip.destination.includes(',') || trip.destination.includes(' - ') || trip.destination.includes(' / ') || trip.destination.includes('->') || trip.destination.includes('→'))) {
+      const rawCities = trip.destination.split(/[,/\-]|->|→/).map(s => s.trim()).filter(Boolean);
       if (rawCities.length >= 2) {
         return rawCities.map(name => ({ name, days: undefined, arrivalDate: undefined, arrivalTime: undefined, departureDate: undefined, departureTime: undefined }));
       }
@@ -1201,9 +1201,9 @@ export default function TripDetailPage() {
                   <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200/80 font-semibold text-slate-800 text-[11px] shadow-2xs">
                     <MapPin className="w-3 h-3 text-[#FF6A00]" />
                     <span>{dest.name}</span>
-                    {dest.days && (
+                    {(dest.days ?? dest.daysCount) && (
                       <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1 py-0.2 rounded">
-                        {dest.days} {dest.days === 1 ? 'dia' : 'dias'}
+                        {dest.days ?? dest.daysCount} {(dest.days ?? dest.daysCount) === 1 ? 'dia' : 'dias'}
                       </span>
                     )}
                     {dest.arrivalDate && (
@@ -2214,9 +2214,9 @@ export default function TripDetailPage() {
                             <MapPin className="w-3.5 h-3.5 text-[#FF6A00]" />
                             {dest.name}
                           </span>
-                          {dest.days && (
+                          {(dest.days ?? (dest as any).daysCount) && (
                             <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                              {dest.days} {dest.days === 1 ? 'dia' : 'dias'}
+                              {dest.days ?? (dest as any).daysCount} {(dest.days ?? (dest as any).daysCount) === 1 ? 'dia' : 'dias'}
                             </span>
                           )}
                         </div>

@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
+  phone?: string | null;
   role: string;
   emailConfirmed: boolean;
   blockedAt: string | null;
@@ -143,4 +144,15 @@ export async function getUserTravelProfile(id: string): Promise<UserTravelProfil
     }
     throw error;
   }
+}
+
+/**
+ * Update user basic details (fullName, email, phone, role)
+ */
+export async function updateUser(
+  id: string,
+  data: { fullName?: string; email?: string; phone?: string; role?: string }
+): Promise<User> {
+  const response = await api.patch(`/admin/users/${id}`, data);
+  return response.data?.data || response.data;
 }
