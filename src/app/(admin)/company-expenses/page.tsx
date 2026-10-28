@@ -224,7 +224,7 @@ export default function CompanyExpensesPage() {
         ...periodQuery,
         category: categoryFilter,
         search: searchQuery.trim() || undefined,
-        limit: 200,
+        limit: 100,
         orderBy: 'spentAt',
         order: 'desc',
       });
